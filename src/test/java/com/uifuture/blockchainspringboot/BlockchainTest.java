@@ -23,17 +23,23 @@ public class BlockchainTest extends SpringBootBlockchainApplicationTests {
     @Test
     public void testCli() {
         Blockchain blockChain = Blockchain.getInstance(rockDB);
+        System.out.println("当前区块:" + blockChain.newGenesisBlock());
         System.out.println("----------------");
-        blockChain.newBlock();
+        System.out.println("当前区块:" + blockChain.newBlock());
         System.out.println("----------------");
-        blockChain.newBlock();
+        System.out.println("当前区块:" + blockChain.newBlock());
         System.out.println("----------------");
-        blockChain.newBlock();
+        System.out.println("当前区块:" + blockChain.newBlock());
         System.out.println("----------------");
-        blockChain.newBlock();
+        System.out.println("当前区块:" + blockChain.newBlock());
         System.out.println("----------------");
+        System.out.println("----------------");
+        System.out.println("创世区块:" + rockDB.getGenesisBlockHash());
+        System.out.println("----------------");
+        System.out.println("上一个区块:" + rockDB.getLastBlock());
+        System.out.println("----------------");
+        System.out.println("上一个区块Hash:" + rockDB.getLastBlockHash());
         // 查看整个区块链大小
         System.out.println("length:" + rockDB.getBlocksBucket().size());
-        System.out.println("----------------");
     }
 }

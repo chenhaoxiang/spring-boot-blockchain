@@ -91,26 +91,20 @@ public class Blockchain {
         return rockDB.getLastBlockHash();
     }
 
-
     /**
-     * 创建区块
+     * 创建创世区块
+     *
      * @return
      */
-    public Block newBlock() {
-        //TODO 在挖矿之前，需要同步最新的区块
+    public Block newGenesisBlock() {
         Block block;
-        if (StringUtils.isBlank(rockDB.getLastBlockHash())) {
-            //创世区块
-            block = new Block(ByteUtils.GENESIS_ZERO_HASH);
-            block.setGenesisHash(ByteUtils.GENESIS_ZERO_HASH);
-            block.setData("Genesis Block");
-        } else {
-            block = new Block(rockDB.getLastBlockHash());
-            //设置创世节点hash
-            block.setGenesisHash(rockDB.getGenesisBlockHash());
-            //设置交易数据,也就是说，下一个区块生成的交易数据，是只包含该区块交易前的数据，10分钟的生效时间。
-            block.setData("data");
+        if (!StringUtils.isBlank(rockDB.getLastBlockHash())) {
+            return null;
         }
+        //创世区块
+        block = new Block(ByteUtils.GENESIS_ZERO_HASH);
+        block.setGenesisHash(ByteUtils.GENESIS_ZERO_HASH);
+        block.setData("Genesis Block");
         block.setTimeStamp(System.currentTimeMillis());
         block.setTarget(ProofOfWork.TARGET);
         ProofOfWork pow = ProofOfWork.newProofOfWork(block);
@@ -118,9 +112,36 @@ public class Blockchain {
         PowResult powResult = pow.run();
         block.setHash(powResult.getHash());
         block.setNonce(powResult.getNonce());
-        System.out.println("当前挖到的区块:" + block);
         rockDB.putBlock(block);
         rockDB.putLastBlockHash(block.getHash());
+        rockDB.putGenesisBlockHash(block.getHash());
+        rockDB.putLastBlock(block);
+        //TODO 挖到之后，需要同步到其他节点
+        return block;
+    }
+
+    /**
+     * 创建区块
+     * @return
+     */
+    public Block newBlock() {
+        //TODO 在挖矿之前，需要同步最新的区块
+        Block block = new Block(rockDB.getLastBlockHash());
+        //设置创世节点hash
+        block.setGenesisHash(rockDB.getGenesisBlockHash());
+        //设置交易数据,也就是说，下一个区块生成的交易数据，是只包含该区块交易前的数据，10分钟的生效时间。
+        block.setData("data");
+
+        block.setTimeStamp(System.currentTimeMillis());
+        block.setTarget(ProofOfWork.TARGET);
+        ProofOfWork pow = ProofOfWork.newProofOfWork(block);
+        //开始挖矿
+        PowResult powResult = pow.run();
+        block.setHash(powResult.getHash());
+        block.setNonce(powResult.getNonce());
+        rockDB.putBlock(block);
+        rockDB.putLastBlockHash(block.getHash());
+        rockDB.putLastBlock(block);
         //TODO 挖到之后，需要同步到其他节点
         return block;
     }

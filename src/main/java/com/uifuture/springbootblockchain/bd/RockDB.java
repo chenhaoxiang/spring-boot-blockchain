@@ -71,11 +71,14 @@ public class RockDB {
                 blocksBucket = Maps.newHashMap();
                 blocksBucketPay = Maps.newHashMap();
                 //TODO 分布式从其他注册的节点获取
+
                 redisHandle.set(BLOCKS_BUCKET_KEY, SerializeUtils.serialize(blocksBucket));
                 redisHandle.set(BLOCKS_BUCKET_PAY_KEY, SerializeUtils.serialize(blocksBucketPay));
             }else {
                 System.out.println("初始化时获取的数据大小:" + blockBucketByte.length);
                 blocksBucket = (Map<String, byte[]>) SerializeUtils.deserialize(blockBucketByte);
+                byte[] blockBucketPayByte = (byte[]) redisHandle.get(BLOCKS_BUCKET_PAY_KEY);
+                blocksBucketPay = (Map<String, byte[]>) SerializeUtils.deserialize(blockBucketPayByte);
             }
         } catch (Exception e) {
             throw new RuntimeException("Fail to init block bucket ! ", e);
@@ -126,7 +129,7 @@ public class RockDB {
      * @return
      */
     public String getLastBlockHash() {
-        byte[] lastBlockHashBytes = blocksBucketPay.get(BLOCKS_BUCKET_PAY_KEY);
+        byte[] lastBlockHashBytes = blocksBucketPay.get(LAST_BLOCK_HASH_KEY);
         if (lastBlockHashBytes != null) {
             return (String) SerializeUtils.deserialize(lastBlockHashBytes);
         }
@@ -139,7 +142,7 @@ public class RockDB {
      * @return
      */
     public Block getLastBlock() {
-        byte[] lastBlockHashBytes = blocksBucketPay.get(BLOCKS_BUCKET_PAY_KEY);
+        byte[] lastBlockHashBytes = blocksBucketPay.get(LAST_BLOCK_KEY);
         if (lastBlockHashBytes != null) {
             return (Block) SerializeUtils.deserialize(lastBlockHashBytes);
         }
