@@ -8,46 +8,53 @@ import com.uifuture.springbootblockchain.block.Block;
 import com.uifuture.springbootblockchain.util.ByteUtils;
 import lombok.Data;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigInteger;
 
 /**
- *  工作量证明
+ * 工作量证明
  * @author chenhx
- * @version ProofOfWork.java, v 0.1 2018-10-11 下午 9:18
+ * @version ProofOfWork.java, v 0.1 2018-10-13 下午 4:50
  */
+
 @Data
 public class ProofOfWork {
     /**
-     * 难度目标位
+     * 难度最大值
      */
-    public static final int TARGET_BITS = 20;
-
+    private static final BigInteger TARGET_MAX = BigInteger.valueOf(1).shiftLeft((250));
     /**
      * 区块
      */
     private Block block;
     /**
+     * 难度目标位  20
+     * 固定一个时间点，多久调整一次
+     * 暂定为2018个区块调整一次
+     */
+    public static int TARGET_BITS = 21;
+    /**
      * 难度目标值
      */
-    private BigInteger target;
+    public static BigInteger TARGET = BigInteger.valueOf(1).shiftLeft((256 - TARGET_BITS));
 
-    private ProofOfWork(Block block, BigInteger target) {
+    private ProofOfWork() {
+    }
+
+    private ProofOfWork(Block block) {
         this.block = block;
-        this.target = target;
     }
 
     /**
      * 创建新的工作量证明，设定难度目标值
      * <p>
      * 对1进行移位运算，将1向左移动 (256 - TARGET_BITS) 位，得到我们的难度目标值
+     * 目前为固定难度值
      * @param block
      * @return
      */
     public static ProofOfWork newProofOfWork(Block block) {
-        BigInteger targetValue = BigInteger.valueOf(1).shiftLeft((256 - TARGET_BITS));
-        return new ProofOfWork(block, targetValue);
+        return new ProofOfWork(block);
     }
 
     /**
@@ -55,55 +62,34 @@ public class ProofOfWork {
      * @return
      */
     public PowResult run() {
-        long nonce = 0;
+        BigInteger nonce = new BigInteger("0");
         String shaHex = "";
-        System.out.printf("Mining the block containing：%s \n", this.getBlock().getData());
         long startTime = System.currentTimeMillis();
-        while (nonce < Long.MAX_VALUE) {
-            byte[] data = this.prepareData(nonce);
+        while (nonce.compareTo(TARGET_MAX) < 0) {
+            this.block.setNonce(nonce);
+            byte[] data = ByteUtils.prepareData(this.block);
             shaHex = DigestUtils.sha256Hex(data);
-            if (new BigInteger(shaHex, 16).compareTo(this.target) == -1) {
-                System.out.printf("Elapsed Time: %s seconds \n", (float) (System.currentTimeMillis() - startTime) / 1000);
-                System.out.printf("Correct hash Hex: %s \n\n", shaHex);
+            if (new BigInteger(shaHex, 16).compareTo(ProofOfWork.TARGET) < 0) {
+                System.out.printf("开采包含的交易数据：%s \n", this.getBlock().getData());
+                System.out.printf("花费时间: %s 秒 \n", (float) (System.currentTimeMillis() - startTime) / 1000);
+                System.out.printf("正确的Hash值: %s \n\n", shaHex);
                 break;
             } else {
-                nonce++;
+                nonce = nonce.add(new BigInteger("1"));
             }
         }
         return new PowResult(nonce, shaHex);
     }
 
     /**
-     * 验证区块是否有效
-     *
+     * 验证当前的区块是否有效
      * @return
      */
     public boolean validate() {
-        byte[] data = this.prepareData(this.getBlock().getNonce());
-        return new BigInteger(DigestUtils.sha256Hex(data), 16).compareTo(this.target) == -1;
+        byte[] data = ByteUtils.prepareData(this.block);
+        return new BigInteger(DigestUtils.sha256Hex(data), 16).compareTo(ProofOfWork.TARGET) == -1;
     }
 
-    /**
-     * 准备数据
-     * <p>
-     * 注意：在准备区块数据时，一定要从原始数据类型转化为byte[]，不能直接从字符串进行转换
-     * @param nonce
-     * @return
-     */
-    private byte[] prepareData(long nonce) {
-        byte[] prevBlockHashBytes = {};
-        if (StringUtils.isNoneBlank(this.getBlock().getPrevBlockHash())) {
-            //创世节点
-            prevBlockHashBytes = new BigInteger(this.getBlock().getPrevBlockHash(), 16).toByteArray();
-        }
-        return ByteUtils.merge(
-                prevBlockHashBytes,
-                this.getBlock().getData().getBytes(),
-                ByteUtils.toBytes(this.getBlock().getTimeStamp()),
-                ByteUtils.toBytes(TARGET_BITS),
-                ByteUtils.toBytes(nonce)
-        );
 
-    }
 
 }

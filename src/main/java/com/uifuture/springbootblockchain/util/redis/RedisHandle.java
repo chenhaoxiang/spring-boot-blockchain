@@ -10,8 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,14 +25,10 @@ import java.util.regex.Pattern;
 @Component
 public class RedisHandle implements RedisCommand<String, Object> {
     /**
-     * 默认缓存时间为30天
+     * 默认缓存时间为365天
      */
-    private final static Long TIME_CACHE = 60 * 60 * 24 * 30L;
-    /**
-     * 出异常，重复操作的次数
-     */
-    private static Integer times = 5;
-    private static Logger logger = LoggerFactory.getLogger(RedisHandle.class);
+    private static final Long TIME_CACHE = 60 * 60 * 24 * 365L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedisHandle.class);
     @Autowired
     protected RedisTemplate redisTemplate;
 
@@ -43,96 +37,6 @@ public class RedisHandle implements RedisCommand<String, Object> {
         return date / 100000.0;
     }
 
-    @Override
-    public Set<String> getAllKeys() {
-        return redisTemplate.keys("*");
-    }
-
-    @Override
-    public Map<String, Object> getAllString() {
-        Set<String> stringSet = getAllKeys();
-        Map<String, Object> map = new HashMap<String, Object>();
-        Iterator<String> iterator = stringSet.iterator();
-        while (iterator.hasNext()) {
-            String k = iterator.next();
-            if (getType(k) == DataType.STRING) {
-                map.put(k, get(k));
-            }
-        }
-        return map;
-    }
-
-    @Override
-    public Map<String, Set<Object>> getAllSet() {
-        Set<String> stringSet = getAllKeys();
-        Map<String, Set<Object>> map = new HashMap<String, Set<Object>>();
-        Iterator<String> iterator = stringSet.iterator();
-        while (iterator.hasNext()) {
-            String k = iterator.next();
-            if (getType(k) == DataType.SET) {
-                logger.debug("获取的Set的key:" + k);
-                map.put(k, getSet(k));
-            }
-        }
-        return map;
-    }
-
-    @Override
-    public Map<String, Set<Object>> getAllZSetRange() {
-        Set<String> stringSet = getAllKeys();
-        Map<String, Set<Object>> map = new HashMap<String, Set<Object>>();
-        Iterator<String> iterator = stringSet.iterator();
-        while (iterator.hasNext()) {
-            String k = iterator.next();
-            if (getType(k) == DataType.ZSET) {
-                logger.debug("k:" + k);
-                map.put(k, getZSetRange(k));
-            }
-        }
-        return map;
-    }
-
-    @Override
-    public Map<String, Set<Object>> getAllZSetReverseRange() {
-        Set<String> stringSet = getAllKeys();
-        Map<String, Set<Object>> map = new HashMap<String, Set<Object>>();
-        Iterator<String> iterator = stringSet.iterator();
-        while (iterator.hasNext()) {
-            String k = iterator.next();
-            if (getType(k) == DataType.ZSET) {
-                map.put(k, getZSetReverseRange(k));
-            }
-        }
-        return map;
-    }
-
-    @Override
-    public Map<String, List<Object>> getAllList() {
-        Set<String> stringSet = getAllKeys();
-        Map<String, List<Object>> map = new HashMap<String, List<Object>>();
-        Iterator<String> iterator = stringSet.iterator();
-        while (iterator.hasNext()) {
-            String k = iterator.next();
-            if (getType(k) == DataType.LIST) {
-                map.put(k, getList(k));
-            }
-        }
-        return map;
-    }
-
-    @Override
-    public Map<String, Map<String, Object>> getAllMap() {
-        Set<String> stringSet = getAllKeys();
-        Map<String, Map<String, Object>> map = new HashMap<String, Map<String, Object>>();
-        Iterator<String> iterator = stringSet.iterator();
-        while (iterator.hasNext()) {
-            String k = iterator.next();
-            if (getType(k) == DataType.HASH) {
-                map.put(k, getMap(k));
-            }
-        }
-        return map;
-    }
 
     @Override
     public void addList(String key, List<Object> objectList) {
@@ -204,35 +108,6 @@ public class RedisHandle implements RedisCommand<String, Object> {
     }
 
     @Override
-    public void removeBlear(String blear) {
-        redisTemplate.delete(redisTemplate.keys(blear));
-    }
-
-    @Override
-    public void removeByRegular(String... blears) {
-        for (String blear : blears) {
-            removeBlear(blear);
-        }
-    }
-
-    @Override
-    public void removeByRegular(String blear) {
-        Set<String> stringSet = getAllKeys();
-        for (String s : stringSet) {
-            if (Pattern.compile(blear).matcher(s).matches()) {
-                redisTemplate.delete(s);
-            }
-        }
-    }
-
-    @Override
-    public void removeMapFieldByRegular(String key, String... blears) {
-        for (String blear : blears) {
-            removeMapFieldByRegular(key, blear);
-        }
-    }
-
-    @Override
     public void removeMapFieldByRegular(String key, String blear) {
         Map<String, Object> map = getMap(key);
         Set<String> stringSet = map.keySet();
@@ -250,14 +125,12 @@ public class RedisHandle implements RedisCommand<String, Object> {
 
     @Override
     public void removeSet(String key) {
-        logger.debug("正在移除SET-key:" + key);
         //通过设置过期时间移除set
         redisTemplate.boundSetOps(key).expire(0, TimeUnit.SECONDS);
     }
 
     @Override
     public void removeZSet(String key) {
-        logger.debug("正在移除ZSET-key:" + key);
         removeZSetRange(key, 0L, getZSetSize(key));
     }
 
@@ -367,7 +240,6 @@ public class RedisHandle implements RedisCommand<String, Object> {
     @Override
     public void remove(String key) {
         if (exists(key)) {
-            logger.debug("正在移除key:" + key);
             redisTemplate.delete(key);
         }
     }
@@ -404,18 +276,6 @@ public class RedisHandle implements RedisCommand<String, Object> {
             list.add(get(key));
         }
         return list;
-    }
-
-    @Override
-    public List<Object> getByRegular(String regKey) {
-        Set<String> stringSet = getAllKeys();
-        List<Object> objectList = new ArrayList<Object>();
-        for (String s : stringSet) {
-            if (Pattern.compile(regKey).matcher(s).matches() && getType(s) == DataType.STRING) {
-                objectList.add(get(s));
-            }
-        }
-        return objectList;
     }
 
     @Override
@@ -482,7 +342,6 @@ public class RedisHandle implements RedisCommand<String, Object> {
 
     @Override
     public void addMap(String key, String field, Object value) {
-        logger.debug("存储Map,Mapkey:" + key + ",key:" + field + ",value:" + value);
         redisTemplate.boundHashOps(key).put(field, value);
     }
 
@@ -522,22 +381,7 @@ public class RedisHandle implements RedisCommand<String, Object> {
 
     @Override
     public Boolean hasSetValue(String key, Object obj) {
-        Boolean boo = null;
-        int t = 0;
-        while (true) {
-            try {
-                boo = redisTemplate.boundSetOps(key).isMember(obj);
-                break;
-            } catch (Exception e) {
-                logger.error("key[" + key + "],obj[" + obj + "]判断Set中的值是否存在失败,异常信息:" + e.getMessage());
-                t++;
-            }
-            if (t > times) {
-                break;
-            }
-        }
-        logger.info("key[" + key + "],obj[" + obj + "]是否存在,boo:" + boo);
-        return boo;
+        return redisTemplate.boundSetOps(key).isMember(obj);
     }
 
     @Override

@@ -16,61 +16,12 @@ import java.util.TreeSet;
 public interface RedisCommand<K, V> {
 
     /**
-     * 用户排序通过注册时间的 权重值
+     * 排序通过注册时间的 权重值
      *
      * @param date
      * @return
      */
     double getCreateTimeScore(long date);
-
-    /**
-     * 获取Redis中所有的键的key
-     *
-     * @return
-     */
-    Set<K> getAllKeys();
-
-    /**
-     * 获取所有的普通key-value
-     *
-     * @return
-     */
-    Map<K, V> getAllString();
-
-    /**
-     * 获取所有的Set -key-value
-     *
-     * @return
-     */
-    Map<K, Set<V>> getAllSet();
-
-    /**
-     * 获取所有的ZSet正序  -key-value 不获取权重值
-     *
-     * @return
-     */
-    Map<K, Set<V>> getAllZSetReverseRange();
-
-    /**
-     * 获取所有的ZSet倒序  -key-value 不获取权重值
-     *
-     * @return
-     */
-    Map<K, Set<V>> getAllZSetRange();
-
-    /**
-     * 获取所有的List -key-value
-     *
-     * @return
-     */
-    Map<K, List<V>> getAllList();
-
-    /**
-     * 获取所有的Map -key-value
-     *
-     * @return
-     */
-    Map<K, Map<K, V>> getAllMap();
 
     /**
      * 添加一个list
@@ -212,14 +163,6 @@ public interface RedisCommand<K, V> {
      */
     List<V> get(final K... key);
 
-    /**
-     * 读取缓存 可以是对象 根据正则表达式匹配
-     *
-     * @param regKey
-     * @return
-     */
-    List<Object> getByRegular(final K regKey);
-
 
     /**
      * 写入缓存 可以是对象
@@ -273,14 +216,14 @@ public interface RedisCommand<K, V> {
      */
     void removeMapField(K key, V... field);
 
-    /*
+    /**
      * 获取map对象
      * @param key map对应的key
      * @return
      */
     Map<K, V> getMap(K key);
 
-    /*
+    /**
      * 获取map中对象的大小
      * @param key map对应的key
      * @return
@@ -289,7 +232,6 @@ public interface RedisCommand<K, V> {
 
     /**
      * 获取map缓存中的某个对象
-     *
      * @param key   map对应的key
      * @param field map中该对象的key
      * @return
@@ -450,35 +392,6 @@ public interface RedisCommand<K, V> {
      * @return
      */
     Boolean renameIfAbsent(String oldKey, String newKey);
-
-    /**
-     * 模糊移除 支持*号等匹配移除 移除key-value
-     *
-     * @param blear
-     */
-    void removeBlear(K blear);
-
-    /**
-     * 根据正则表达式来移除key-value
-     *
-     * @param blears
-     */
-    void removeByRegular(String... blears);
-
-    /**
-     * 根据正则表达式来移除key-value
-     *
-     * @param blears
-     */
-    void removeByRegular(String blears);
-
-    /**
-     * 根据正则表达式来移除 Map中的key-value
-     *
-     * @param key
-     * @param blears
-     */
-    void removeMapFieldByRegular(K key, K... blears);
 
     /**
      * 根据正则表达式来移除 Map中的key-value
