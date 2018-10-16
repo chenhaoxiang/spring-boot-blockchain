@@ -70,7 +70,7 @@ public class ProofOfWork {
             byte[] data = ByteUtils.prepareData(this.block);
             shaHex = DigestUtils.sha256Hex(data);
             if (new BigInteger(shaHex, 16).compareTo(ProofOfWork.TARGET) < 0) {
-                System.out.printf("开采包含的交易数据：%s \n", this.getBlock().getData());
+                System.out.printf("开采包含的交易数据：%s \n", this.getBlock().getTransactions());
                 System.out.printf("花费时间: %s 秒 \n", (float) (System.currentTimeMillis() - startTime) / 1000);
                 System.out.printf("正确的Hash值: %s \n\n", shaHex);
                 break;

@@ -7,8 +7,15 @@ package com.uifuture.springbootblockchain.block;
 import com.uifuture.springbootblockchain.bd.RockDB;
 import com.uifuture.springbootblockchain.pow.PowResult;
 import com.uifuture.springbootblockchain.pow.ProofOfWork;
+import com.uifuture.springbootblockchain.transaction.SpendableOutputResult;
+import com.uifuture.springbootblockchain.transaction.TransactionData;
+import com.uifuture.springbootblockchain.transaction.entity.TXInput;
+import com.uifuture.springbootblockchain.transaction.entity.TXOutput;
+import com.uifuture.springbootblockchain.transaction.entity.Transaction;
 import com.uifuture.springbootblockchain.util.ByteUtils;
 import lombok.Data;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 
@@ -45,6 +52,8 @@ public class Blockchain {
      */
     private Set<String> nodes;
 
+    private String address;
+
     private Blockchain() {
         init();
     }
@@ -54,11 +63,17 @@ public class Blockchain {
      *
      * @return
      */
-    public static Blockchain getInstance(RockDB rockDB) {
+    public static Blockchain getInstance(RockDB rockDB, String address) {
         if (blockChain == null) {
             synchronized (Blockchain.class) {
                 if (blockChain == null) {
                     Blockchain.rockDB = rockDB;
+                    String lastBlockHash = rockDB.getLastBlockHash();
+                    if (StringUtils.isBlank(lastBlockHash)) {
+                        // 创建 coinBase 交易
+                        Transaction coinbaseTX = TransactionData.newTransactionsTX(rockDB, address, "");
+                        newGenesisBlock(coinbaseTX);
+                    }
                     blockChain = new Blockchain();
                 }
             }
@@ -93,10 +108,9 @@ public class Blockchain {
 
     /**
      * 创建创世区块
-     *
      * @return
      */
-    public Block newGenesisBlock() {
+    private static Block newGenesisBlock(Transaction base) {
         Block block;
         if (!StringUtils.isBlank(rockDB.getLastBlockHash())) {
             return null;
@@ -104,7 +118,7 @@ public class Blockchain {
         //创世区块
         block = new Block(ByteUtils.GENESIS_ZERO_HASH);
         block.setGenesisHash(ByteUtils.GENESIS_ZERO_HASH);
-        block.setData("Genesis Block");
+        block.setTransactions(new Transaction[]{base});
         block.setTimeStamp(System.currentTimeMillis());
         block.setTarget(ProofOfWork.TARGET);
         ProofOfWork pow = ProofOfWork.newProofOfWork(block);
@@ -112,6 +126,7 @@ public class Blockchain {
         PowResult powResult = pow.run();
         block.setHash(powResult.getHash());
         block.setNonce(powResult.getNonce());
+        //TODO 校验
         rockDB.putBlock(block);
         rockDB.putLastBlockHash(block.getHash());
         rockDB.putGenesisBlockHash(block.getHash());
@@ -124,13 +139,13 @@ public class Blockchain {
      * 创建区块
      * @return
      */
-    public Block newBlock() {
+    public Block newBlock(Transaction[] transactions) {
         //TODO 在挖矿之前，需要同步最新的区块
         Block block = new Block(rockDB.getLastBlockHash());
         //设置创世节点hash
         block.setGenesisHash(rockDB.getGenesisBlockHash());
-        //设置交易数据,也就是说，下一个区块生成的交易数据，是只包含该区块交易前的数据，10分钟的生效时间。
-        block.setData("data");
+        //TODO 设置交易数据,也就是说，下一个区块生成的交易数据，是只包含该区块交易前的数据，10分钟的生效时间。
+        block.setTransactions(transactions);
 
         block.setTimeStamp(System.currentTimeMillis());
         block.setTarget(ProofOfWork.TARGET);
@@ -146,27 +161,9 @@ public class Blockchain {
         return block;
     }
 
-    /**
-     * 生成新交易信息，信息将加入到下一个待挖的区块中
-     *
-     * @param sender    发送方的地址
-     * @param recipient 接收方的地址
-     * @param amount    交易数量
-     * @return 返回该交易事务的块的索引
-     */
-    public String newTransactions(String sender, String recipient, long amount) {
-        Map<String, Object> transaction = new HashMap<>(4);
-        transaction.put("sender", sender);
-        transaction.put("recipient", recipient);
-        transaction.put("amount", amount);
-
-        getCurrentTransactions().add(transaction);
-        return lastBlock();
-    }
 
     /**
      * 检查是否是有效链，遍历每个区块验证hash和proof，来确定一个给定的区块链是否有效
-     *
      * @param chain
      * @return
      */
@@ -239,4 +236,131 @@ public class Blockchain {
         }
         return false;
     }
+
+    /**
+     * 查找钱包地址对应的所有未花费的交易
+     *
+     * @param address 钱包地址
+     * @return
+     */
+    private Transaction[] findUnspentTransactions(String address) throws Exception {
+        Map<String, int[]> allSpentTXOs = this.getAllSpentTXOs(address);
+        Transaction[] unspentTxs = {};
+        // 再次遍历所有区块中的交易输出
+        for (BlockchainIterator blockchainIterator = new BlockchainIterator(rockDB.getLastBlockHash());
+             blockchainIterator.hashNext(rockDB); ) {
+            Block block = blockchainIterator.next(rockDB);
+            for (Transaction transaction : block.getTransactions()) {
+
+                String txId = Hex.encodeHexString(transaction.getTxId());
+
+                int[] spentOutIndexArray = allSpentTXOs.get(txId);
+
+                for (int outIndex = 0; outIndex < transaction.getOutputs().length; outIndex++) {
+                    if (spentOutIndexArray != null && ArrayUtils.contains(spentOutIndexArray, outIndex)) {
+                        continue;
+                    }
+                    // 保存不存在 allSpentTXOs 中的交易
+                    if (transaction.getOutputs()[outIndex].canBeUnlockedWith(address)) {
+                        unspentTxs = ArrayUtils.add(unspentTxs, transaction);
+                    }
+                }
+            }
+        }
+        return unspentTxs;
+    }
+
+
+    /**
+     * 从交易输入中查询区块链中所有已被花费了的交易输出
+     *
+     * @param address 钱包地址
+     * @return 交易ID以及对应的交易输出下标地址
+     * @throws Exception
+     */
+    private Map<String, int[]> getAllSpentTXOs(String address) throws Exception {
+        // 定义TxId ——> spentOutIndex[]，存储交易ID与已被花费的交易输出数组索引值
+        Map<String, int[]> spentTXOs = new HashMap<>(64);
+        for (BlockchainIterator blockchainIterator = new BlockchainIterator(rockDB.getLastBlockHash());
+             blockchainIterator.hashNext(rockDB); ) {
+            Block block = blockchainIterator.next(rockDB);
+            for (Transaction transaction : block.getTransactions()) {
+                // 如果是 coinbase 交易，直接跳过，因为它不存在引用前一个区块的交易输出
+                if (transaction.isCoinbase()) {
+                    continue;
+                }
+                for (TXInput txInput : transaction.getInputs()) {
+                    if (txInput.canUnlockOutputWith(address)) {
+                        String inTxId = Hex.encodeHexString(txInput.getTxId());
+                        int[] spentOutIndexArray = spentTXOs.get(inTxId);
+                        if (spentOutIndexArray == null) {
+                            spentTXOs.put(inTxId, new int[]{txInput.getTxOutputIndex()});
+                        } else {
+                            spentOutIndexArray = ArrayUtils.add(spentOutIndexArray, txInput.getTxOutputIndex());
+                            spentTXOs.put(inTxId, spentOutIndexArray);
+                        }
+                    }
+                }
+            }
+        }
+        return spentTXOs;
+    }
+
+
+    /**
+     * 查找钱包地址对应的所有UTXO
+     *
+     * @param address 钱包地址
+     * @return
+     */
+    public TXOutput[] findUTXO(String address) throws Exception {
+        Transaction[] unspentTxs = this.findUnspentTransactions(address);
+        TXOutput[] utxos = {};
+        if (unspentTxs == null || unspentTxs.length == 0) {
+            return utxos;
+        }
+        for (Transaction tx : unspentTxs) {
+            for (TXOutput txOutput : tx.getOutputs()) {
+                if (txOutput.canBeUnlockedWith(address)) {
+                    utxos = ArrayUtils.add(utxos, txOutput);
+                }
+            }
+        }
+        return utxos;
+    }
+
+
+    /**
+     * 寻找能够花费的交易
+     *
+     * @param address 钱包地址
+     * @param amount  花费金额
+     */
+    public SpendableOutputResult findSpendableOutputs(String address, int amount) throws Exception {
+        Transaction[] unspentTXs = this.findUnspentTransactions(address);
+        int accumulated = 0;
+        Map<String, int[]> unspentOuts = new HashMap<>();
+        for (Transaction tx : unspentTXs) {
+            String txId = Hex.encodeHexString(tx.getTxId());
+            for (int outId = 0; outId < tx.getOutputs().length; outId++) {
+                TXOutput txOutput = tx.getOutputs()[outId];
+                if (txOutput.canBeUnlockedWith(address) && accumulated < amount) {
+                    accumulated += txOutput.getValue();
+                    int[] outIds = unspentOuts.get(txId);
+                    if (outIds == null) {
+                        outIds = new int[]{outId};
+                    } else {
+                        outIds = ArrayUtils.add(outIds, outId);
+                    }
+                    unspentOuts.put(txId, outIds);
+                    if (accumulated >= amount) {
+                        break;
+                    }
+                }
+            }
+        }
+        return new SpendableOutputResult(accumulated, unspentOuts);
+    }
+
+
 }

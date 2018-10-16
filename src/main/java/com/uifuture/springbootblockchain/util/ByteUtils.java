@@ -33,7 +33,7 @@ public class ByteUtils {
     public static byte[] prepareData(Block block) {
         return ByteUtils.merge(
                 new BigInteger(block.getPrevBlockHash(), 16).toByteArray(),
-                block.getData().getBytes(),
+                block.hashTransaction(),
                 ByteUtils.toBytes(block.getTimeStamp()),
                 ByteUtils.toBytes(ProofOfWork.TARGET_BITS),
                 block.getNonce().toByteArray(),
