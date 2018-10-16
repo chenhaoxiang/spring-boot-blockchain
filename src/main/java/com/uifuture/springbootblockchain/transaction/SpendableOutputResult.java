@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import java.util.Map;
 
 /**
+ * 查询结果
  * @author chenhx
  * @version SpendableOutputResult.java, v 0.1 2018-10-15 下午 6:51
  */
@@ -18,6 +19,7 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SpendableOutputResult {
+
     /**
      * 交易时的支付金额
      */
@@ -26,4 +28,5 @@ public class SpendableOutputResult {
      * 未花费的交易
      */
     private Map<String, int[]> unspentOuts;
+
 }

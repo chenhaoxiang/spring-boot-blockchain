@@ -20,6 +20,8 @@
 *.rar
 
 ### IntelliJ IDEA ###
+blockchain.db
+*.dat
 .idea
 *.iws
 *.iml

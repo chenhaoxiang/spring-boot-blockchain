@@ -4,33 +4,27 @@
  */
 package com.uifuture.springbootblockchain.block;
 
-import com.uifuture.springbootblockchain.bd.RockDB;
-import com.uifuture.springbootblockchain.pow.PowResult;
-import com.uifuture.springbootblockchain.pow.ProofOfWork;
-import com.uifuture.springbootblockchain.transaction.SpendableOutputResult;
-import com.uifuture.springbootblockchain.transaction.TransactionData;
-import com.uifuture.springbootblockchain.transaction.entity.TXInput;
-import com.uifuture.springbootblockchain.transaction.entity.TXOutput;
-import com.uifuture.springbootblockchain.transaction.entity.Transaction;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.uifuture.springbootblockchain.bd.RocksDBUtils;
+import com.uifuture.springbootblockchain.transaction.TXInput;
+import com.uifuture.springbootblockchain.transaction.TXOutput;
+import com.uifuture.springbootblockchain.transaction.Transaction;
 import com.uifuture.springbootblockchain.util.ByteUtils;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.json.JSONObject;
+import org.apache.commons.lang3.time.DateFormatUtils;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 区块链
@@ -40,327 +34,307 @@ import java.util.Set;
  */
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Slf4j
 public class Blockchain {
-    private static Blockchain blockChain = null;
-    private static RockDB rockDB;
-    /**
-     * 该实例变量用于当前的交易信息列表
-     */
-    private List<Map<String, Object>> currentTransactions;
-    /**
-     * 用于存储网络中其他节点的集合
-     */
-    private Set<String> nodes;
 
-    private String address;
+    private String lastBlockHash;
 
-    private Blockchain() {
-        init();
-    }
 
     /**
-     * 创建单例对象
+     * 从 DB 中恢复区块链数据
      *
      * @return
      */
-    public static Blockchain getInstance(RockDB rockDB, String address) {
-        if (blockChain == null) {
-            synchronized (Blockchain.class) {
-                if (blockChain == null) {
-                    Blockchain.rockDB = rockDB;
-                    String lastBlockHash = rockDB.getLastBlockHash();
-                    if (StringUtils.isBlank(lastBlockHash)) {
-                        // 创建 coinBase 交易
-                        Transaction coinbaseTX = TransactionData.newTransactionsTX(rockDB, address, "");
-                        newGenesisBlock(coinbaseTX);
-                    }
-                    blockChain = new Blockchain();
-                }
-            }
+    public static Blockchain initBlockchainFromDB() {
+        String lastBlockHash = RocksDBUtils.getInstance().getLastBlockHash();
+        if (lastBlockHash == null) {
+            throw new RuntimeException("ERROR: Fail to init blockchain from db. ");
         }
-        return blockChain;
-    }
-
-    private void init() {
-        currentTransactions = new ArrayList<>();
-        // 用于存储网络中其他节点的集合
-        nodes = new HashSet<>();
-    }
-
-    /**
-     * 注册节点
-     *
-     * @param address 节点地址
-     * @throws MalformedURLException
-     */
-    public void registerNode(String address) throws MalformedURLException {
-        URL url = new URL(address);
-        String node = url.getHost() + ":" + (url.getPort() == -1 ? url.getDefaultPort() : url.getPort());
-        nodes.add(node);
-    }
-
-    /**
-     * @return 得到区块链中的最后一个区块的Hash
-     */
-    public String lastBlock() {
-        return rockDB.getLastBlockHash();
-    }
-
-    /**
-     * 创建创世区块
-     * @return
-     */
-    private static Block newGenesisBlock(Transaction base) {
-        Block block;
-        if (!StringUtils.isBlank(rockDB.getLastBlockHash())) {
-            return null;
-        }
-        //创世区块
-        block = new Block(ByteUtils.GENESIS_ZERO_HASH);
-        block.setGenesisHash(ByteUtils.GENESIS_ZERO_HASH);
-        block.setTransactions(new Transaction[]{base});
-        block.setTimeStamp(System.currentTimeMillis());
-        block.setTarget(ProofOfWork.TARGET);
-        ProofOfWork pow = ProofOfWork.newProofOfWork(block);
-        //开始挖矿
-        PowResult powResult = pow.run();
-        block.setHash(powResult.getHash());
-        block.setNonce(powResult.getNonce());
-        //TODO 校验
-        rockDB.putBlock(block);
-        rockDB.putLastBlockHash(block.getHash());
-        rockDB.putGenesisBlockHash(block.getHash());
-        rockDB.putLastBlock(block);
-        //TODO 挖到之后，需要同步到其他节点
-        return block;
-    }
-
-    /**
-     * 创建区块
-     * @return
-     */
-    public Block newBlock(Transaction[] transactions) {
-        //TODO 在挖矿之前，需要同步最新的区块
-        Block block = new Block(rockDB.getLastBlockHash());
-        //设置创世节点hash
-        block.setGenesisHash(rockDB.getGenesisBlockHash());
-        //TODO 设置交易数据,也就是说，下一个区块生成的交易数据，是只包含该区块交易前的数据，10分钟的生效时间。
-        block.setTransactions(transactions);
-
-        block.setTimeStamp(System.currentTimeMillis());
-        block.setTarget(ProofOfWork.TARGET);
-        ProofOfWork pow = ProofOfWork.newProofOfWork(block);
-        //开始挖矿
-        PowResult powResult = pow.run();
-        block.setHash(powResult.getHash());
-        block.setNonce(powResult.getNonce());
-        rockDB.putBlock(block);
-        rockDB.putLastBlockHash(block.getHash());
-        rockDB.putLastBlock(block);
-        //TODO 挖到之后，需要同步到其他节点
-        return block;
+        return new Blockchain(lastBlockHash);
     }
 
 
     /**
-     * 检查是否是有效链，遍历每个区块验证hash和proof，来确定一个给定的区块链是否有效
-     * @param chain
-     * @return
-     */
-    public boolean validChain(Map<String, byte[]> chain) {
-//        Block lastBlock = chain.get(0);
-//        int currentIndex = 1;
-//        while (currentIndex < chain.size()) {
-//            Block block = chain.get(currentIndex);
-//            System.out.println(lastBlock.toString());
-//            System.out.println(block.toString());
-//            System.out.println("\n-------------------------\n");
-//            // 检查block的hash是否正确
-//            byte[] data = ByteUtils.prepareData(lastBlock);
-//            String shaHex = DigestUtils.sha256Hex(data);
-//            if (! block.getPrevBlockHash().equals(shaHex)) {
-//                return false;
-//            }
-//            lastBlock = block;
-//            currentIndex++;
-//        }
-        return true;
-    }
-
-    /**
-     * 共识算法解决冲突，使用网络中最长的链. 遍历所有的邻居节点，并用上一个方法检查链的有效性， 如果发现有效更长链，就替换掉自己的链
-     *
-     * @return 如果链被取代返回true, 否则返回false
-     * @throws IOException
-     */
-    public boolean resolveConflicts() throws IOException {
-        Set<String> neighbours = this.nodes;
-        Map<String, byte[]> newChain = null;
-
-        // 寻找最长的区块链
-        long maxLength = rockDB.getBlocksBucket().size();
-
-        // 获取并验证网络中的所有节点的区块链
-        for (String node : neighbours) {
-
-            URL url = new URL("http://" + node + "/BlockChain_Java/chain");
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.connect();
-
-            if (connection.getResponseCode() == 200) {
-                BufferedReader bufferedReader = new BufferedReader(
-                        new InputStreamReader(connection.getInputStream(), "utf-8"));
-                StringBuffer responseData = new StringBuffer();
-                String response = null;
-                while ((response = bufferedReader.readLine()) != null) {
-                    responseData.append(response);
-                }
-                bufferedReader.close();
-
-                JSONObject jsonData = new JSONObject(bufferedReader.toString());
-                long length = jsonData.getLong("size");
-                Map<String, byte[]> chain = (Map<String, byte[]>) jsonData.getJSONArray("chain").toList();
-
-                // 检查长度是否长，链是否有效
-                if (length > maxLength && validChain(chain)) {
-                    maxLength = length;
-                    newChain = chain;
-                }
-            }
-
-        }
-        // 如果发现一个新的有效链比我们的长，就替换当前的链
-        if (newChain != null) {
-            rockDB.setBlocksBucket(newChain);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * 查找钱包地址对应的所有未花费的交易
+     * <p> 创建区块链 </p>
      *
      * @param address 钱包地址
      * @return
      */
-    private Transaction[] findUnspentTransactions(String address) throws Exception {
-        Map<String, int[]> allSpentTXOs = this.getAllSpentTXOs(address);
-        Transaction[] unspentTxs = {};
+    public static Blockchain createBlockchain(String address) {
+        String lastBlockHash = RocksDBUtils.getInstance().getLastBlockHash();
+        if (StringUtils.isBlank(lastBlockHash)) {
+            // 创建 coinBase 交易，创世奖励
+            String genesisCoinbaseData = "The Times " + DateFormatUtils.format(new Date(), "yyyy-MM-dd HH:mm:ss SSS") + " Chancellor on brink of second bailout for banks";
+            Transaction coinbaseTX = Transaction.newCoinbaseTX(address, genesisCoinbaseData);
+            Block genesisBlock = Block.newGenesisBlock(coinbaseTX);
+            lastBlockHash = genesisBlock.getHash();
+            RocksDBUtils.getInstance().putBlock(genesisBlock);
+            RocksDBUtils.getInstance().putLastBlockHash(lastBlockHash);
+        }
+        return new Blockchain(lastBlockHash);
+    }
+
+    /**
+     * 打包交易，进行挖矿
+     *
+     * @param transactions
+     */
+    public Block mineBlock(Transaction[] transactions) {
+        // 挖矿前，先验证交易记录
+        for (Transaction tx : transactions) {
+            if (!this.verifyTransactions(tx)) {
+                log.error("ERROR: Fail to mine block ! Invalid transaction ! tx=" + tx.toString());
+                throw new RuntimeException("ERROR: Fail to mine block ! Invalid transaction ! ");
+            }
+        }
+        Block lastBlock = RocksDBUtils.getInstance().getLastBlock();
+        //创建新区块
+        Block block = Block.newBlock(lastBlockHash, transactions, lastBlock.getHeight() + 1);
+        this.addBlock(block);
+        return block;
+    }
+
+    /**
+     * <p> 添加区块  </p>
+     *
+     * @param block
+     */
+    private void addBlock(Block block) {
+        RocksDBUtils.getInstance().putLastBlockHash(block.getHash());
+        RocksDBUtils.getInstance().putBlock(block);
+        this.lastBlockHash = block.getHash();
+    }
+
+    /**
+     * <p> 添加区块  </p>
+     *
+     * @param block
+     */
+    public void saveBlock(Block block) {
+        Block existBlock = RocksDBUtils.getInstance().getBlock(block.getHash());
+        if (existBlock != null) {
+            return;
+        }
+        // 保存区块数据
+        RocksDBUtils.getInstance().putBlock(block);
+        Block lastBlock = RocksDBUtils.getInstance().getLastBlock();
+
+        if (block.getHeight() > lastBlock.getHeight()) {
+            RocksDBUtils.getInstance().putLastBlockHash(block.getHash());
+            this.lastBlockHash = block.getHash();
+        }
+    }
+
+    /**
+     * 获取区块链迭代器
+     *
+     * @return
+     */
+    public BlockchainIterator getBlockchainIterator() {
+        return new BlockchainIterator(lastBlockHash);
+    }
+
+    /**
+     * 查找所有的 unspent transaction outputs
+     *
+     * @return
+     */
+    public Map<String, TXOutput[]> findAllUTXOs() {
+        Map<String, int[]> allSpentTXOs = this.getAllSpentTXOs();
+        Map<String, TXOutput[]> allUTXOs = Maps.newHashMap();
         // 再次遍历所有区块中的交易输出
-        for (BlockchainIterator blockchainIterator = new BlockchainIterator(rockDB.getLastBlockHash());
-             blockchainIterator.hashNext(rockDB); ) {
-            Block block = blockchainIterator.next(rockDB);
+        for (BlockchainIterator blockchainIterator = this.getBlockchainIterator(); blockchainIterator.hashNext(); ) {
+            Block block = blockchainIterator.next();
             for (Transaction transaction : block.getTransactions()) {
 
                 String txId = Hex.encodeHexString(transaction.getTxId());
 
                 int[] spentOutIndexArray = allSpentTXOs.get(txId);
-
-                for (int outIndex = 0; outIndex < transaction.getOutputs().length; outIndex++) {
+                TXOutput[] txOutputs = transaction.getOutputs();
+                for (int outIndex = 0; outIndex < txOutputs.length; outIndex++) {
                     if (spentOutIndexArray != null && ArrayUtils.contains(spentOutIndexArray, outIndex)) {
                         continue;
                     }
-                    // 保存不存在 allSpentTXOs 中的交易
-                    if (transaction.getOutputs()[outIndex].canBeUnlockedWith(address)) {
-                        unspentTxs = ArrayUtils.add(unspentTxs, transaction);
+                    TXOutput[] UTXOArray = allUTXOs.get(txId);
+                    if (UTXOArray == null) {
+                        UTXOArray = new TXOutput[]{txOutputs[outIndex]};
+                    } else {
+                        UTXOArray = ArrayUtils.add(UTXOArray, txOutputs[outIndex]);
                     }
+                    allUTXOs.put(txId, UTXOArray);
                 }
             }
         }
-        return unspentTxs;
+        return allUTXOs;
     }
-
 
     /**
      * 从交易输入中查询区块链中所有已被花费了的交易输出
      *
-     * @param address 钱包地址
      * @return 交易ID以及对应的交易输出下标地址
-     * @throws Exception
      */
-    private Map<String, int[]> getAllSpentTXOs(String address) throws Exception {
+    private Map<String, int[]> getAllSpentTXOs() {
         // 定义TxId ——> spentOutIndex[]，存储交易ID与已被花费的交易输出数组索引值
-        Map<String, int[]> spentTXOs = new HashMap<>(64);
-        for (BlockchainIterator blockchainIterator = new BlockchainIterator(rockDB.getLastBlockHash());
-             blockchainIterator.hashNext(rockDB); ) {
-            Block block = blockchainIterator.next(rockDB);
+        Map<String, int[]> spentTXOs = Maps.newHashMap();
+        for (BlockchainIterator blockchainIterator = this.getBlockchainIterator(); blockchainIterator.hashNext(); ) {
+            Block block = blockchainIterator.next();
+
             for (Transaction transaction : block.getTransactions()) {
                 // 如果是 coinbase 交易，直接跳过，因为它不存在引用前一个区块的交易输出
                 if (transaction.isCoinbase()) {
                     continue;
                 }
                 for (TXInput txInput : transaction.getInputs()) {
-                    if (txInput.canUnlockOutputWith(address)) {
-                        String inTxId = Hex.encodeHexString(txInput.getTxId());
-                        int[] spentOutIndexArray = spentTXOs.get(inTxId);
-                        if (spentOutIndexArray == null) {
-                            spentTXOs.put(inTxId, new int[]{txInput.getTxOutputIndex()});
-                        } else {
-                            spentOutIndexArray = ArrayUtils.add(spentOutIndexArray, txInput.getTxOutputIndex());
-                            spentTXOs.put(inTxId, spentOutIndexArray);
-                        }
+                    String inTxId = Hex.encodeHexString(txInput.getTxId());
+                    int[] spentOutIndexArray = spentTXOs.get(inTxId);
+                    if (spentOutIndexArray == null) {
+                        spentOutIndexArray = new int[]{txInput.getTxOutputIndex()};
+                    } else {
+                        spentOutIndexArray = ArrayUtils.add(spentOutIndexArray, txInput.getTxOutputIndex());
                     }
+                    spentTXOs.put(inTxId, spentOutIndexArray);
                 }
             }
         }
         return spentTXOs;
     }
 
-
     /**
-     * 查找钱包地址对应的所有UTXO
+     * 依据交易ID查询交易信息
      *
-     * @param address 钱包地址
+     * @param txId 交易ID
      * @return
      */
-    public TXOutput[] findUTXO(String address) throws Exception {
-        Transaction[] unspentTxs = this.findUnspentTransactions(address);
-        TXOutput[] utxos = {};
-        if (unspentTxs == null || unspentTxs.length == 0) {
-            return utxos;
-        }
-        for (Transaction tx : unspentTxs) {
-            for (TXOutput txOutput : tx.getOutputs()) {
-                if (txOutput.canBeUnlockedWith(address)) {
-                    utxos = ArrayUtils.add(utxos, txOutput);
+    private Transaction findTransaction(byte[] txId) {
+        for (BlockchainIterator iterator = this.getBlockchainIterator(); iterator.hashNext(); ) {
+            Block block = iterator.next();
+            for (Transaction tx : block.getTransactions()) {
+                if (Arrays.equals(tx.getTxId(), txId)) {
+                    return tx;
                 }
             }
         }
-        return utxos;
+        throw new RuntimeException("ERROR: Can not found tx by txId ! ");
     }
-
 
     /**
-     * 寻找能够花费的交易
+     * 进行交易签名
      *
-     * @param address 钱包地址
-     * @param amount  花费金额
+     * @param tx         交易数据
+     * @param privateKey 私钥
      */
-    public SpendableOutputResult findSpendableOutputs(String address, int amount) throws Exception {
-        Transaction[] unspentTXs = this.findUnspentTransactions(address);
-        int accumulated = 0;
-        Map<String, int[]> unspentOuts = new HashMap<>();
-        for (Transaction tx : unspentTXs) {
-            String txId = Hex.encodeHexString(tx.getTxId());
-            for (int outId = 0; outId < tx.getOutputs().length; outId++) {
-                TXOutput txOutput = tx.getOutputs()[outId];
-                if (txOutput.canBeUnlockedWith(address) && accumulated < amount) {
-                    accumulated += txOutput.getValue();
-                    int[] outIds = unspentOuts.get(txId);
-                    if (outIds == null) {
-                        outIds = new int[]{outId};
-                    } else {
-                        outIds = ArrayUtils.add(outIds, outId);
-                    }
-                    unspentOuts.put(txId, outIds);
-                    if (accumulated >= amount) {
-                        break;
-                    }
-                }
-            }
+    public void signTransaction(Transaction tx, BCECPrivateKey privateKey) throws Exception {
+        // 先来找到这笔新的交易中，交易输入所引用的前面的多笔交易的数据
+        Map<String, Transaction> prevTxMap = Maps.newHashMap();
+        for (TXInput txInput : tx.getInputs()) {
+            Transaction prevTx = this.findTransaction(txInput.getTxId());
+            prevTxMap.put(Hex.encodeHexString(txInput.getTxId()), prevTx);
         }
-        return new SpendableOutputResult(accumulated, unspentOuts);
+        tx.sign(privateKey, prevTxMap);
     }
 
+    /**
+     * 交易签名验证
+     *
+     * @param tx
+     */
+    public boolean verifyTransactions(Transaction tx) {
+        if (tx.isCoinbase()) {
+            return true;
+        }
+        Map<String, Transaction> prevTx = Maps.newHashMap();
+        for (TXInput txInput : tx.getInputs()) {
+            Transaction transaction = this.findTransaction(txInput.getTxId());
+            prevTx.put(Hex.encodeHexString(txInput.getTxId()), transaction);
+        }
+        try {
+            return tx.verify(prevTx);
+        } catch (Exception e) {
+            log.error("Fail to verify transaction ! transaction invalid ! ", e);
+            throw new RuntimeException("Fail to verify transaction ! transaction invalid ! ", e);
+        }
+    }
+
+    /**
+     * 获取本地节点区块的最大高度
+     *
+     * @return
+     */
+    public long getBestHeight() {
+        Block lastBlock = RocksDBUtils.getInstance().getLastBlock();
+        return lastBlock.getHeight();
+    }
+
+    /**
+     * 获取区块链中所有区块的hash值
+     *
+     * @return
+     */
+    public List<String> getAllBlockHash() {
+        List<String> blockHashes = Lists.newArrayList();
+        for (BlockchainIterator blockchainIterator = this.getBlockchainIterator(); blockchainIterator.hashNext(); ) {
+            Block block = blockchainIterator.next();
+            blockHashes.add(block.getHash());
+        }
+        return blockHashes;
+    }
+
+    /**
+     * 根据hash查询区块
+     *
+     * @param hash
+     * @return
+     */
+    public Block getBlockByHash(String hash) {
+        return RocksDBUtils.getInstance().getBlock(hash);
+    }
+
+    /**
+     * 区块链迭代器
+     */
+    public class BlockchainIterator {
+
+        private String currentBlockHash;
+
+        private BlockchainIterator(String currentBlockHash) {
+            this.currentBlockHash = currentBlockHash;
+        }
+
+        /**
+         * 是否有下一个区块
+         *
+         * @return
+         */
+        public boolean hashNext() {
+            if (ByteUtils.ZERO_HASH.equals(currentBlockHash)) {
+                return false;
+            }
+            Block lastBlock = RocksDBUtils.getInstance().getBlock(currentBlockHash);
+            if (lastBlock == null) {
+                return false;
+            }
+            // 创世区块直接放行
+            if (ByteUtils.ZERO_HASH.equals(lastBlock.getPrevBlockHash())) {
+                return true;
+            }
+            return RocksDBUtils.getInstance().getBlock(lastBlock.getPrevBlockHash()) != null;
+        }
+
+        /**
+         * 返回区块
+         *
+         * @return
+         */
+        public Block next() {
+            Block currentBlock = RocksDBUtils.getInstance().getBlock(currentBlockHash);
+            if (currentBlock != null) {
+                this.currentBlockHash = currentBlock.getPrevBlockHash();
+                return currentBlock;
+            }
+            return null;
+        }
+    }
 
 }

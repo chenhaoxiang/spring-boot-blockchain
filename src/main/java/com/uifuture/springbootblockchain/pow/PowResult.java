@@ -4,7 +4,9 @@
  */
 package com.uifuture.springbootblockchain.pow;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigInteger;
 
@@ -14,7 +16,10 @@ import java.math.BigInteger;
  * @version PowResult.java, v 0.1 2018-10-13 下午 4:50
  */
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class PowResult {
+
     /**
      * 计数器
      */
@@ -24,8 +29,4 @@ public class PowResult {
      */
     private String hash;
 
-    public PowResult(BigInteger nonce, String hash) {
-        this.nonce = nonce;
-        this.hash = hash;
-    }
 }

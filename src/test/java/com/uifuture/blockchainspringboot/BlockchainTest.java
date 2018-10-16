@@ -4,10 +4,7 @@
  */
 package com.uifuture.blockchainspringboot;
 
-import com.uifuture.springbootblockchain.bd.RockDB;
-import com.uifuture.springbootblockchain.block.Blockchain;
-import org.junit.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.uifuture.springbootblockchain.cli.CLI;
 
 /**
  * 测试
@@ -15,37 +12,24 @@ import org.springframework.beans.factory.annotation.Autowired;
  * @author chenhx
  * @version BlockchainTest.java, v 0.1 2018-10-11 下午 9:23
  */
-public class BlockchainTest extends SpringBootBlockchainApplicationTests {
+public class BlockchainTest {
 
-    @Autowired
-    private RockDB rockDB;
+    public static void main(String[] args) {
+        // 12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr
+        try {
+//            String[] argss = {"createwallet"};
+            String[] argss = {"createblockchain", "-address", "12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr"};
+//            String[] argss = {"printaddresses"};
+//            String[] argss = {"getbalance", "-address", "1B9eFkAq3BoeRbinryDUFaHsTAEjxzBP4S"};
+//            String[] argss = {"send", "-from", "1BjZzivUJzGRt6VqNkX8vZ3DVbVwLwETpR", "-to", "1NPeKwxHehoWK1SY6LqHxgVYsB7Ud65BkP", "-amount", "1"};
+//            String[] argss = {"printchain"};
+//            String[] argss = {"mining", "-address", "12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr"};
 
-    /**
-     * 新地址  1
-     */
-    @Test
-    public void testCli() {
-        Blockchain blockChain = Blockchain.getInstance(rockDB, "1314520ab0145711d0e866d98c1ea0911e5f2ffb75c9ea6931de917ec3667775");
-        System.out.println("当前区块:" + rockDB.getLastBlock());
-        //转给地址 1,1000000  1UB
-
-
-//        System.out.println("----------------");
-//        System.out.println("当前区块:" + blockChain.newBlock(new Transaction[]{}));
-//        System.out.println("----------------");
-//        System.out.println("当前区块:" + blockChain.newBlock(new Transaction[]{}));
-//        System.out.println("----------------");
-//        System.out.println("当前区块:" + blockChain.newBlock(new Transaction[]{}));
-//        System.out.println("----------------");
-//        System.out.println("当前区块:" + blockChain.newBlock(new Transaction[]{}));
-//        System.out.println("----------------");
-//        System.out.println("----------------");
-//        System.out.println("创世区块:" + rockDB.getGenesisBlockHash());
-//        System.out.println("----------------");
-//        System.out.println("上一个区块:" + rockDB.getLastBlock());
-//        System.out.println("----------------");
-        System.out.println("上一个区块Hash:" + rockDB.getLastBlockHash());
-        // 查看整个区块链大小
-        System.out.println("length:" + rockDB.getBlocksBucket().size());
+            CLI cli = new CLI(argss);
+            cli.parse();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
+
 }

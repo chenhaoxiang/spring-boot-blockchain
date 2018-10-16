@@ -4,13 +4,17 @@
  */
 package com.uifuture.springbootblockchain.block;
 
-import com.uifuture.springbootblockchain.transaction.entity.Transaction;
+import com.uifuture.springbootblockchain.pow.PowResult;
+import com.uifuture.springbootblockchain.pow.ProofOfWork;
+import com.uifuture.springbootblockchain.transaction.MerkleTree;
+import com.uifuture.springbootblockchain.transaction.Transaction;
 import com.uifuture.springbootblockchain.util.ByteUtils;
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.apache.commons.codec.digest.DigestUtils;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.math.BigInteger;
-import java.util.Arrays;
 
 /**
  * 区块
@@ -19,11 +23,10 @@ import java.util.Arrays;
  * @version Block.java, v 0.1 2018-10-11 下午 9:16
  */
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
 public class Block {
-    /**
-     * 工作量证明计数器
-     */
-    private BigInteger nonce;
     /**
      * 区块hash值
      */
@@ -33,24 +36,48 @@ public class Block {
      */
     private String prevBlockHash;
     /**
-     * 区块数据（交易数据）
+     * 交易信息
      */
     private Transaction[] transactions;
     /**
-     * 区块创建时间(单位:ns)
+     * 区块创建时间(单位:毫秒)
      */
     private long timeStamp;
     /**
-     * 当前难度值
+     * 工作量证明计数器
      */
-    private BigInteger target;
+    private BigInteger nonce;
     /**
-     * 创世区块hash值,起源hash
+     * 区块高度
      */
-    private String genesisHash;
+    private int height;
 
-    public Block(String prevBlockHash) {
-        this.prevBlockHash = prevBlockHash;
+    /**
+     * <p> 创建创世区块 </p>
+     *
+     * @param coinbase
+     * @return
+     */
+    public static Block newGenesisBlock(Transaction coinbase) {
+        return Block.newBlock(ByteUtils.ZERO_HASH, new Transaction[]{coinbase}, 0);
+    }
+
+    /**
+     * <p> 创建新区块 </p>
+     *
+     * @param previousHash
+     * @param transactions
+     * @return
+     */
+    public static Block newBlock(String previousHash, Transaction[] transactions, int height) {
+        Block block = new Block("", previousHash, transactions, System.currentTimeMillis()
+                , new BigInteger("0"), height);
+        ProofOfWork pow = ProofOfWork.newProofOfWork(block);
+        //计算
+        PowResult powResult = pow.run();
+        block.setHash(powResult.getHash());
+        block.setNonce(powResult.getNonce());
+        return block;
     }
 
     /**
@@ -61,25 +88,8 @@ public class Block {
     public byte[] hashTransaction() {
         byte[][] txIdArrays = new byte[this.getTransactions().length][];
         for (int i = 0; i < this.getTransactions().length; i++) {
-            txIdArrays[i] = this.getTransactions()[i].getTxId();
+            txIdArrays[i] = this.getTransactions()[i].hash();
         }
-        return DigestUtils.sha256(ByteUtils.merge(txIdArrays));
-    }
-
-
-    @Override
-    public String toString() {
-        final StringBuilder sb = new StringBuilder("Block{");
-        sb.append(super.toString());
-        sb.append(",");
-        sb.append("nonce=").append(nonce);
-        sb.append(", hash='").append(hash).append('\'');
-        sb.append(", prevBlockHash='").append(prevBlockHash).append('\'');
-        sb.append(", transactions=").append(Arrays.toString(transactions));
-        sb.append(", timeStamp=").append(timeStamp);
-        sb.append(", target=").append(target);
-        sb.append(", genesisHash='").append(genesisHash).append('\'');
-        sb.append('}');
-        return sb.toString();
+        return new MerkleTree(txIdArrays).getRoot().getHash();
     }
 }
