@@ -18,11 +18,12 @@ public class BlockchainTest {
         // 12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr
         try {
 //            String[] argss = {"createwallet"};
-            String[] argss = {"createblockchain", "-address", "12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr"};
+//            String[] argss = {"createblockchain", "-address", "12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr"};
 //            String[] argss = {"printaddresses"};
-//            String[] argss = {"getbalance", "-address", "1B9eFkAq3BoeRbinryDUFaHsTAEjxzBP4S"};
+            String[] argss = {"getbalance", "-address", "12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr"};
 //            String[] argss = {"send", "-from", "1BjZzivUJzGRt6VqNkX8vZ3DVbVwLwETpR", "-to", "1NPeKwxHehoWK1SY6LqHxgVYsB7Ud65BkP", "-amount", "1"};
 //            String[] argss = {"printchain"};
+            //TODO 挖矿需要修改，前面的没有增加上去
 //            String[] argss = {"mining", "-address", "12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr"};
 
             CLI cli = new CLI(argss);
