@@ -22,10 +22,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.commons.lang3.time.DateFormatUtils;
 
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Set;
 
 /**
@@ -80,6 +78,14 @@ public class CLI {
                     }
                     this.createBlockchain(createblockchainAddress);
                     break;
+                case "mining":
+                    //创建区块
+                    String createblockAddress = cmd.getOptionValue("address");
+                    if (StringUtils.isBlank(createblockAddress)) {
+                        help();
+                    }
+                    this.mining(createblockAddress);
+                    break;
                 case "getbalance":
                     String getBalanceAddress = cmd.getOptionValue("address");
                     if (StringUtils.isBlank(getBalanceAddress)) {
@@ -107,14 +113,6 @@ public class CLI {
                 case "printchain":
                     this.printChain();
                     break;
-                case "mining":
-                    //创建区块
-                    String createblockAddress = cmd.getOptionValue("address");
-                    if (StringUtils.isBlank(createblockAddress)) {
-                        help();
-                    }
-                    this.mining(createblockAddress);
-                    break;
                 case "h":
                     this.help();
                     break;
@@ -132,24 +130,20 @@ public class CLI {
      * 挖矿
      */
     private void mining(String address) {
-        Blockchain blockchain = Blockchain.createBlockchain(address);
-        // 创建 coinBase 交易，挖矿奖励
-        String genesisCoinbaseData = "The Times " + DateFormatUtils.format(new Date(), "yyyy-MM-dd HH:mm:ss SSS")
-                + " Chancellor on brink of second bailout for banks";
-        Transaction coinbaseTX = Transaction.newCoinbaseTX(address, genesisCoinbaseData);
-        //交易需要存储到内存中
-        blockchain.mineBlock(new Transaction[]{coinbaseTX});
-    }
-
-    /**
-     * 验证入参
-     *
-     * @param args
-     */
-    private void validateArgs(String[] args) {
-        if (args == null || args.length < 1) {
-            help();
+        // 检查钱包地址是否合法
+        try {
+            Base58Check.base58ToBytes(address);
+        } catch (Exception e) {
+            log.error("ERROR: sender address invalid ! address=" + address, e);
+            throw new RuntimeException("ERROR: sender address invalid ! address=" + address, e);
         }
+        Blockchain blockchain = Blockchain.createBlockchain(address);
+        //挖矿奖励
+        Transaction rewardTX = Transaction.newCoinbaseTX(address, "");
+        //TODO 交易需要发送到其他的节点上去  还需要获取其他的交易
+        Block block = blockchain.mineBlock(new Transaction[]{rewardTX});
+        new UTXOSet(blockchain).update(block);
+        log.info("Done ! ");
     }
 
     /**
@@ -162,6 +156,17 @@ public class CLI {
         UTXOSet utxoSet = new UTXOSet(blockchain);
         utxoSet.reIndex();
         log.info("Done ! ");
+    }
+
+    /**
+     * 验证入参
+     *
+     * @param args
+     */
+    private void validateArgs(String[] args) {
+        if (args == null || args.length < 1) {
+            help();
+        }
     }
 
     /**

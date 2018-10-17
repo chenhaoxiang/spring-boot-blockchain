@@ -15,17 +15,20 @@ import com.uifuture.springbootblockchain.cli.CLI;
 public class BlockchainTest {
 
     public static void main(String[] args) {
-        // 12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr
+        // 1GurUqY7GTXX3HhcCAXiptqNC2pGW4tkwE   200
+        //15VZSPVaoyCKQxzERi5mvx1iYH8v2GUEJd  200
         try {
 //            String[] argss = {"createwallet"};
-//            String[] argss = {"createblockchain", "-address", "12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr"};
+//            String[] argss = {"createblockchain", "-address", "1GurUqY7GTXX3HhcCAXiptqNC2pGW4tkwE"};
+            //获取地址
 //            String[] argss = {"printaddresses"};
-            String[] argss = {"getbalance", "-address", "12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr"};
-//            String[] argss = {"send", "-from", "1BjZzivUJzGRt6VqNkX8vZ3DVbVwLwETpR", "-to", "1NPeKwxHehoWK1SY6LqHxgVYsB7Ud65BkP", "-amount", "1"};
+            //获取钱包余额
+//            String[] argss = {"getbalance", "-address", "1GurUqY7GTXX3HhcCAXiptqNC2pGW4tkwE"};
+//            String[] argss = {"send", "-from", "1GurUqY7GTXX3HhcCAXiptqNC2pGW4tkwE"
+//                    , "-to", "15VZSPVaoyCKQxzERi5mvx1iYH8v2GUEJd", "-amount", "400000000"};
+            //打印链
 //            String[] argss = {"printchain"};
-            //TODO 挖矿需要修改，前面的没有增加上去
-//            String[] argss = {"mining", "-address", "12dLri3xQY3CCdZC6qpAULsUZCVhfkWQyr"};
-
+            String[] argss = {"mining", "-address", "1GurUqY7GTXX3HhcCAXiptqNC2pGW4tkwE"};
             CLI cli = new CLI(argss);
             cli.parse();
         } catch (Exception e) {

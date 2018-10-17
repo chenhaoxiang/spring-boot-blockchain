@@ -14,6 +14,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.ArrayUtils;
@@ -87,6 +88,37 @@ public class Transaction {
             //创世区块
             value = value * 2;
         }
+
+        // 创建交易输出
+        TXOutput txOutput = TXOutput.newTXOutput(value, to);
+        // 创建交易
+        Transaction tx = new Transaction(null, new TXInput[]{txInput},
+                new TXOutput[]{txOutput}, System.currentTimeMillis());
+        // 设置交易ID
+        tx.setTxId(tx.hash());
+        return tx;
+    }
+
+    /**
+     * 创建 交易  挖矿奖励
+     *
+     * @param to 收账的钱包地址
+     * @return
+     */
+    public static Transaction newRewardTX(String to, Blockchain blockchain) throws DecoderException {
+        //获取当前区块大小
+        Integer size = RocksDBUtils.getInstance().getChainstateBucket().size();
+        Integer multiple = size / OUT_PUT_VALUE + 1;
+        Integer value = CREATION_VALUE / multiple;
+        if (size == 0) {
+            //创世区块
+            value = value * 2;
+        }
+
+        String data = String.format("Reward to '%s'", to);
+        // 创建交易输入
+        TXInput txInput = new TXInput(new byte[]{}, -1, null, data.getBytes());
+
         // 创建交易输出
         TXOutput txOutput = TXOutput.newTXOutput(value, to);
         // 创建交易
@@ -244,7 +276,6 @@ public class Transaction {
 
     /**
      * 验证交易信息
-     *
      * @param prevTxMap 前面多笔交易集合
      * @return
      */

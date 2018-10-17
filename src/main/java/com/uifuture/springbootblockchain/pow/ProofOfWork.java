@@ -36,7 +36,7 @@ public class ProofOfWork {
      * 固定一个时间点，多久调整一次
      * 暂定为2018个区块调整一次
      */
-    public static int TARGET_BITS = 20;
+    public static int TARGET_BITS = 15;
     /**
      * 难度目标值
      */
