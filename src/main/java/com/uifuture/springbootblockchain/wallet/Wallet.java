@@ -34,9 +34,7 @@ import java.security.Security;
 @AllArgsConstructor
 @Slf4j
 public class Wallet implements Serializable {
-
-    private static final long serialVersionUID = 166249065006236265L;
-
+    private static final long serialVersionUID = 9064268200637906140L;
     /**
      * 校验码长度
      */

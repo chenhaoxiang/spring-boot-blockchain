@@ -48,7 +48,6 @@ public class MerkleTree {
 
     /**
      * 从底部叶子节点开始往上构建整个Merkle Tree
-     *
      * @param leafHashes
      */
     private void constructTree(byte[][] leafHashes) {
@@ -78,14 +77,12 @@ public class MerkleTree {
             Node parent = constructInternalNode(child1, child2);
             parents.add(parent);
         }
-
         // 内部节点奇数个，只对left节点进行计算
         if (children.size() % 2 != 0) {
             Node child = children.get(children.size() - 1);
             Node parent = constructInternalNode(child, null);
             parents.add(parent);
         }
-
         return parents;
     }
 

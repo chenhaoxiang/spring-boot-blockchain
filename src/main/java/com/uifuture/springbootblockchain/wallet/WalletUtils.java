@@ -37,7 +37,6 @@ import java.util.Set;
 
 @Slf4j
 public class WalletUtils {
-
     /**
      * 钱包文件
      */
@@ -49,7 +48,7 @@ public class WalletUtils {
     /**
      * 密文
      */
-    private static final byte[] CIPHER_TEXT = "2oF@5sC%DNf32y!TmiZi!tG9W5rLaniD".getBytes();
+    private static final byte[] CIPHER_TEXT = "g8ZcuSjpysW60rqAQRotiD9men7bJVEz".getBytes();
     /**
      * 钱包工具实例
      */
@@ -59,6 +58,11 @@ public class WalletUtils {
         initWalletFile();
     }
 
+    /**
+     * 获取钱包工具单例
+     *
+     * @return
+     */
     public static WalletUtils getInstance() {
         if (instance == null) {
             synchronized (WalletUtils.class) {
@@ -149,11 +153,12 @@ public class WalletUtils {
             SecretKeySpec sks = new SecretKeySpec(CIPHER_TEXT, ALGORITHM);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.DECRYPT_MODE, sks);
-            @Cleanup CipherInputStream cipherInputStream = new CipherInputStream(
+            try (CipherInputStream cipherInputStream = new CipherInputStream(
                     new BufferedInputStream(new FileInputStream(WALLET_FILE)), cipher);
-            @Cleanup ObjectInputStream inputStream = new ObjectInputStream(cipherInputStream);
-            SealedObject sealedObject = (SealedObject) inputStream.readObject();
-            return (Wallets) sealedObject.getObject(cipher);
+                 ObjectInputStream inputStream = new ObjectInputStream(cipherInputStream)) {
+                SealedObject sealedObject = (SealedObject) inputStream.readObject();
+                return (Wallets) sealedObject.getObject(cipher);
+            }
         } catch (Exception e) {
             log.error("Fail to load wallet from disk ! ", e);
             throw new RuntimeException("Fail to load wallet from disk ! ");
@@ -167,9 +172,7 @@ public class WalletUtils {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Wallets implements Serializable {
-
-        private static final long serialVersionUID = -2542070981569243131L;
-
+        private static final long serialVersionUID = -1892644908836459804L;
         private Map<String, Wallet> walletMap = Maps.newHashMap();
 
         /**

@@ -68,4 +68,53 @@ public class ByteUtils {
         return ByteBuffer.wrap(bytes).getInt();
     }
 
+    /**
+     * 字节数组转16进制字符串
+     *
+     * @param src
+     * @return
+     */
+    public static String bytesToHexString(byte[] src) {
+        StringBuilder stringBuilder = new StringBuilder("");
+        if (src == null || src.length <= 0) {
+            return null;
+        }
+        for (int i = 0; i < src.length; i++) {
+            int v = src[i] & 0xFF;
+            String hex = Integer.toHexString(v);
+            if (hex.length() < 2) {
+                stringBuilder.append(0);
+            }
+            stringBuilder.append(hex);
+        }
+        return stringBuilder.toString();
+    }
+
+    /**
+     * 16进制字符串转换成字节数组
+     *
+     * @param hex
+     * @return
+     */
+    public static byte[] hexStringToByte(String hex) {
+        byte[] b = new byte[hex.length() / 2];
+        int j = 0;
+        for (int i = 0; i < b.length; i++) {
+            char c0 = hex.charAt(j++);
+            char c1 = hex.charAt(j++);
+            b[i] = (byte) ((parse(c0) << 4) | parse(c1));
+        }
+        return b;
+    }
+
+    private static int parse(char c) {
+        if (c >= 'a') {
+            return (c - 'a' + 10) & 0x0f;
+        }
+        if (c >= 'A') {
+            return (c - 'A' + 10) & 0x0f;
+        }
+        return (c - '0') & 0x0f;
+    }
+
 }

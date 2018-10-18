@@ -9,10 +9,9 @@ import com.uifuture.springbootblockchain.pow.ProofOfWork;
 import com.uifuture.springbootblockchain.transaction.MerkleTree;
 import com.uifuture.springbootblockchain.transaction.Transaction;
 import com.uifuture.springbootblockchain.util.ByteUtils;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigInteger;
 
@@ -22,9 +21,8 @@ import java.math.BigInteger;
  * @author chenhx
  * @version Block.java, v 0.1 2018-10-11 下午 9:16
  */
+@Slf4j
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 @ToString
 public class Block {
     /**
@@ -44,7 +42,7 @@ public class Block {
      */
     private long timeStamp;
     /**
-     * 工作量证明计数器
+     * 工作量证明计数器 挖到时的运算值
      */
     private BigInteger nonce;
     /**
@@ -52,6 +50,15 @@ public class Block {
      */
     private int height;
 
+    /**
+     * 默克尔树rootHash
+     */
+    private String merkleRoot;
+
+    /**
+     * 难度目标值
+     */
+    private BigInteger target;
     /**
      * <p> 创建创世区块 </p>
      *
@@ -70,19 +77,28 @@ public class Block {
      * @return
      */
     public static Block newBlock(String previousHash, Transaction[] transactions, int height) {
-        Block block = new Block("", previousHash, transactions, System.currentTimeMillis()
-                , new BigInteger("0"), height);
+        Block block = new Block();
+        block.setPrevBlockHash(previousHash);
+        block.setTimeStamp(System.currentTimeMillis());
+        block.setHeight(height);
+        block.setTransactions(transactions);
+        block.setMerkleRoot(ByteUtils.bytesToHexString(block.hashTransaction()));
+        log.info("block.hashTransaction={}", block.hashTransaction());
+        log.info("block={}", block);
+        log.info("block.getMerkleRoot={}", ByteUtils.hexStringToByte(block.getMerkleRoot()));
+
         ProofOfWork pow = ProofOfWork.newProofOfWork(block);
         //计算
         PowResult powResult = pow.run();
         block.setHash(powResult.getHash());
         block.setNonce(powResult.getNonce());
+        log.info("block={}", block);
         return block;
     }
 
     /**
      * 对区块中的交易信息进行Hash计算
-     *
+     * 获取根节点Hash
      * @return
      */
     public byte[] hashTransaction() {

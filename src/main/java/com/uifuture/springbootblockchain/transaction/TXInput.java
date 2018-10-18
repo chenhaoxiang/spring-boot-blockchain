@@ -29,7 +29,7 @@ public class TXInput {
     private byte[] txId;
     /**
      * 交易输出索引
-     * 定义了它所指向的UTXO在上一笔交易中交易输出数组的位置(下标值)。
+     * 定义了它所指向的UTXO在上一笔交易中交易输出数组的位置。
      */
     private int txOutputIndex;
     /**
