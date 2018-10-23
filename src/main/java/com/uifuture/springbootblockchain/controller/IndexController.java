@@ -7,6 +7,8 @@ package com.uifuture.springbootblockchain.controller;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.io.IOException;
+
 /**
  * @author chenhx
  * @version IndexController.java, v 0.1 2018-10-13 下午 4:21
@@ -15,15 +17,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("ui")
 public class IndexController {
 
-//    /**
-//     * 该Servlet用于输出整个区块链的数据
-//     * @param req
-//     * @param resp
-//     * @throws IOException
-//     */
+    /**
+     * 该Servlet用于输出整个区块链的数据
+     * @param req
+     * @param resp
+     * @throws IOException
+     */
 //    @RequestMapping("chain")
 //    public void chain(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-//        Blockchain blockChain = Blockchain.getInstance();
+//        Blockchain blockChain = Blockchain.initBlockchainFromDB();
 //        Map<String, Object> response = new HashMap<String, Object>();
 //        response.put("chain", blockChain.getChain());
 //        response.put("length", blockChain.getChain().size());
@@ -107,4 +109,5 @@ public class IndexController {
 //        printWriter.println(new JSONObject(response));
 //        printWriter.close();
 //    }
+
 }

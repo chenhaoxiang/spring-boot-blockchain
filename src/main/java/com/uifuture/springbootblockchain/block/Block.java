@@ -25,6 +25,7 @@ import java.math.BigInteger;
 @Data
 @ToString
 public class Block {
+    private String version = "1.0.0";
     /**
      * 区块hash值
      */
