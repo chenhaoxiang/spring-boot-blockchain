@@ -25,6 +25,7 @@ import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
 
@@ -48,7 +49,7 @@ public class WalletUtils {
     /**
      * 密文
      */
-    private static final byte[] CIPHER_TEXT = "g8ZcuSjpysW60rqAQRotiD9men7bJVEz".getBytes();
+    private static final byte[] CIPHER_TEXT = "g8ZcuSjpysW60rqAQRotiD9men7bJVEz".getBytes(StandardCharsets.UTF_8);
     /**
      * 钱包工具实例
      */

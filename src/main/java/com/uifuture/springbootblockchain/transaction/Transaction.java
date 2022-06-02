@@ -27,6 +27,7 @@ import org.bouncycastle.jce.spec.ECPublicKeySpec;
 import org.bouncycastle.math.ec.ECPoint;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.Security;
@@ -79,7 +80,7 @@ public class Transaction {
             data = String.format("Reward to '%s'", to);
         }
         // 创建交易输入
-        TXInput txInput = new TXInput(new byte[]{}, -1, null, data.getBytes());
+        TXInput txInput = new TXInput(new byte[]{}, -1, null, data.getBytes(StandardCharsets.UTF_8));
         //获取当前区块大小
         Integer size = RocksDBUtils.getInstance().getChainstateBucket().size();
         Integer multiple = size / OUT_PUT_VALUE + 1;
@@ -117,7 +118,7 @@ public class Transaction {
 
         String data = String.format("Reward to '%s'", to);
         // 创建交易输入
-        TXInput txInput = new TXInput(new byte[]{}, -1, null, data.getBytes());
+        TXInput txInput = new TXInput(new byte[]{}, -1, null, data.getBytes(StandardCharsets.UTF_8));
 
         // 创建交易输出
         TXOutput txOutput = TXOutput.newTXOutput(value, to);

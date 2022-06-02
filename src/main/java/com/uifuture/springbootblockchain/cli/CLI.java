@@ -266,11 +266,11 @@ public class CLI {
      */
     private void help() {
         System.out.println("Usage:");
-        System.out.println("  createwallet - Generates a new key-pair and saves it into the wallet file");
-        System.out.println("  printaddresses - print all wallet address");
-        System.out.println("  getbalance -address ADDRESS - Get balance of ADDRESS");
+        System.out.println("  createwallet - 生成一个新的密钥对并将其保存到钱包文件中");
+        System.out.println("  printaddresses - 打印所有钱包地址");
+        System.out.println("  getbalance -address ADDRESS - 获取地址的余额");
         System.out.println("  createblockchain -address ADDRESS - 创建一个区块链，并向指定地址发送创世奖励");
-        System.out.println("  printchain - Print all the blocks of the blockchain");
+        System.out.println("  printchain - 打印区块链的所有块");
         System.out.println("  send -from FROM -to TO -amount AMOUNT - Send AMOUNT of coins from FROM address to TO");
         System.exit(0);
     }

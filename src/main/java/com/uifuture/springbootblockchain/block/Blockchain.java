@@ -66,7 +66,8 @@ public class Blockchain {
         String lastBlockHash = RocksDBUtils.getInstance().getLastBlockHash();
         if (StringUtils.isBlank(lastBlockHash)) {
             // 创建 coinBase 交易，创世奖励
-            String genesisCoinbaseData = "The Times " + DateFormatUtils.format(new Date(), "yyyy-MM-dd HH:mm:ss SSS") + " Chancellor on brink of second bailout for banks";
+//            String genesisCoinbaseData = "The Times " + DateFormatUtils.format(new Date(), "yyyy-MM-dd HH:mm:ss SSS") + " Chancellor on brink of second bailout for banks";
+            String genesisCoinbaseData = "创世区块时间： " + DateFormatUtils.format(new Date(), "yyyy-MM-dd HH:mm:ss SSS") + " 去中心化区块链的开始";
             Transaction coinbaseTX = Transaction.newCoinbaseTX(address, genesisCoinbaseData);
             Block genesisBlock = Block.newGenesisBlock(coinbaseTX);
             lastBlockHash = genesisBlock.getHash();
