@@ -60,15 +60,16 @@ public class Blockchain {
      * <p> 创建区块链 </p>
      *
      * @param address 钱包地址
+     * @param value 赠送的藏品
      * @return
      */
-    public static Blockchain createBlockchain(String address) {
+    public static Blockchain createBlockchain(String address,String value) {
         String lastBlockHash = RocksDBUtils.getInstance().getLastBlockHash();
         if (StringUtils.isBlank(lastBlockHash)) {
             // 创建 coinBase 交易，创世奖励
 //            String genesisCoinbaseData = "The Times " + DateFormatUtils.format(new Date(), "yyyy-MM-dd HH:mm:ss SSS") + " Chancellor on brink of second bailout for banks";
             String genesisCoinbaseData = "创世区块时间： " + DateFormatUtils.format(new Date(), "yyyy-MM-dd HH:mm:ss SSS") + " 去中心化区块链的开始";
-            Transaction coinbaseTX = Transaction.newCoinbaseTX(address, genesisCoinbaseData);
+            Transaction coinbaseTX = Transaction.newCoinbaseTX(address, genesisCoinbaseData,value);
             Block genesisBlock = Block.newGenesisBlock(coinbaseTX);
             lastBlockHash = genesisBlock.getHash();
             RocksDBUtils.getInstance().putBlock(genesisBlock);
@@ -78,7 +79,7 @@ public class Blockchain {
     }
 
     /**
-     * 打包交易，进行挖矿
+     * 打包交易
      *
      * @param transactions
      */
@@ -91,7 +92,7 @@ public class Blockchain {
             }
         }
         Block lastBlock = RocksDBUtils.getInstance().getLastBlock();
-        //创建新区块
+        //创建新区块，高度+1
         Block block = Block.newBlock(lastBlockHash, transactions, lastBlock.getHeight() + 1);
         this.addBlock(block);
         return block;
@@ -212,6 +213,9 @@ public class Blockchain {
         for (BlockchainIterator iterator = this.getBlockchainIterator(); iterator.hashNext(); ) {
             Block block = iterator.next();
             for (Transaction tx : block.getTransactions()) {
+//                if(tx.getTxId().length==0 && txId.length==0){
+//                    return tx;
+//                }
                 if (Arrays.equals(tx.getTxId(), txId)) {
                     return tx;
                 }
@@ -230,6 +234,7 @@ public class Blockchain {
         // 先来找到这笔新的交易中，交易输入所引用的前面的多笔交易的数据
         Map<String, Transaction> prevTxMap = Maps.newHashMap();
         for (TXInput txInput : tx.getInputs()) {
+            //这个输入的上一笔交易
             Transaction prevTx = this.findTransaction(txInput.getTxId());
             prevTxMap.put(Hex.encodeHexString(txInput.getTxId()), prevTx);
         }

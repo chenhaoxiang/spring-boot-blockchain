@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 
-import java.util.Map;
+import java.util.*;
 
 /**
  * 未被花费的交易输出池
@@ -33,38 +33,41 @@ public class UTXOSet {
     private Blockchain blockchain;
 
     /**
-     * 寻找能够花费的交易
+     * 寻找是否拥有这个藏品
      *
      * @param pubKeyHash 钱包公钥Hash
-     * @param amount     花费金额
+     * @param value     交易的藏品
      */
-    public SpendableOutputResult findSpendableOutputs(byte[] pubKeyHash, int amount) {
-        Map<String, int[]> unspentOuts = Maps.newHashMap();
-        int accumulated = 0;
+    public SpendableOutputResult findSpendableOutputs(byte[] pubKeyHash, String value) {
         Map<String, byte[]> chainstateBucket = RocksDBUtils.getInstance().getChainstateBucket();
+        //遍历区块
+        long maxTime = 0;
+        TXOutput max = null;
+        int oId = -1;
+        String txId="";
         for (Map.Entry<String, byte[]> entry : chainstateBucket.entrySet()) {
-            String txId = entry.getKey();
             TXOutput[] txOutputs = (TXOutput[]) SerializeUtils.deserialize(entry.getValue());
-
             for (int outId = 0; outId < txOutputs.length; outId++) {
                 TXOutput txOutput = txOutputs[outId];
-                if (txOutput.isLockedWithKey(pubKeyHash) && accumulated < amount) {
-                    accumulated += txOutput.getValue();
-
-                    int[] outIds = unspentOuts.get(txId);
-                    if (outIds == null) {
-                        outIds = new int[]{outId};
-                    } else {
-                        outIds = ArrayUtils.add(outIds, outId);
-                    }
-                    unspentOuts.put(txId, outIds);
-                    if (accumulated >= amount) {
-                        break;
+                if(txOutput.getValue().equals(value)){
+                    //需要时间最晚的是自己这个公钥的
+                    if(txOutput.getTimestamp() > maxTime){
+                        txId = entry.getKey();
+                        maxTime = txOutput.getTimestamp();
+                        max = txOutput;
+                        oId = outId;
                     }
                 }
             }
         }
-        return new SpendableOutputResult(accumulated, unspentOuts);
+        if(max==null){
+            return new SpendableOutputResult(oId, null,txId);
+        }
+        if (max.isLockedWithKey(pubKeyHash)) {
+            //需要校验，最后交易的人是不是这个人的
+            return new SpendableOutputResult(oId, max,txId);
+        }
+        return new SpendableOutputResult(oId, null,txId);
     }
 
 

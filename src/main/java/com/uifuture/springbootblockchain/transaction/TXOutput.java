@@ -18,18 +18,30 @@ import java.util.Arrays;
  * @version TXOutput.java, v 0.1 2018-10-15 下午 6:23
  */
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class TXOutput {
 
     /**
-     * 数值
+     * 藏品的hash
      */
-    private int value;
+    private String value;
     /**
-     * 公钥Hash
+     * 公钥Hash - 也就是这个公钥收到这个藏品
      */
     private byte[] pubKeyHash;
+
+    /**
+     * 交易的时间
+     */
+    private long timestamp;
+
+    public TXOutput() {
+    }
+
+    public TXOutput(String value, byte[] pubKeyHash) {
+        this.value = value;
+        this.pubKeyHash = pubKeyHash;
+        this.timestamp = System.currentTimeMillis();
+    }
 
     /**
      * 创建交易输出
@@ -38,7 +50,7 @@ public class TXOutput {
      * @param address
      * @return
      */
-    public static TXOutput newTXOutput(int value, String address) {
+    public static TXOutput newTXOutput(String value, String address) {
         // 反向转化为 byte 数组
         byte[] versionedPayload = Base58Check.base58ToBytes(address);
         byte[] pubKeyHash = Arrays.copyOfRange(versionedPayload, 1, versionedPayload.length);

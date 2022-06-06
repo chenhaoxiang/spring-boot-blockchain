@@ -78,7 +78,7 @@ public class ProofOfWork {
                 log.info("正确的Hash值: {}", shaHex);
                 break;
             } else {
-                log.info("当前运算量: {}", nonce);
+//                log.info("当前运算量: {}", nonce);
                 nonce = nonce.add(new BigInteger("1"));
             }
         }

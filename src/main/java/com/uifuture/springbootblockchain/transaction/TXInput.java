@@ -21,26 +21,22 @@ import java.util.Arrays;
 public class TXInput {
 
     /**
-     * 交易Id的hash值
+     * 交易Id的hash值，就是这个交易的txId
      * 包含了它所指向的UTXO的交易的Hash值。
      */
     private byte[] txId;
-    private String txIdStr;
     /**
-     * 交易输出索引
-     * 定义了它所指向的UTXO在上一笔交易中交易输出数组的位置。
+     * 对应的输出的位置
      */
     private int txOutputIndex;
     /**
      * 签名
      */
     private byte[] signature;
-    private String signatureStr;
     /**
      * 公钥
      */
     private byte[] pubKey;
-    private String pubKeyStr;
 
     public TXInput() {
     }
@@ -61,27 +57,6 @@ public class TXInput {
     public boolean usesKey(byte[] pubKeyHash) {
         byte[] lockingHash = BtcAddressUtils.ripeMD160Hash(this.getPubKey());
         return Arrays.equals(lockingHash, pubKeyHash);
-    }
-
-    public String getTxIdStr() {
-        if(txId!=null){
-            txIdStr = Arrays.toString(txId);
-        }
-        return txIdStr;
-    }
-
-    public String getSignatureStr() {
-        if(signatureStr!=null){
-            signatureStr = Arrays.toString(signature);
-        }
-        return signatureStr;
-    }
-
-    public String getPubKeyStr() {
-        if(pubKey!=null){
-            pubKeyStr = Arrays.toString(pubKey);
-        }
-        return pubKeyStr;
     }
 
     public static void main(String[] args) {

@@ -8,6 +8,7 @@ import com.uifuture.springbootblockchain.bd.RocksDBUtils;
 import com.uifuture.springbootblockchain.block.Block;
 import com.uifuture.springbootblockchain.block.Blockchain;
 import com.uifuture.springbootblockchain.pow.ProofOfWork;
+import com.uifuture.springbootblockchain.transaction.SpendableOutputResult;
 import com.uifuture.springbootblockchain.transaction.TXOutput;
 import com.uifuture.springbootblockchain.transaction.Transaction;
 import com.uifuture.springbootblockchain.transaction.UTXOSet;
@@ -22,6 +23,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.json.JSONObject;
 
 import java.util.Arrays;
 import java.util.Set;
@@ -73,10 +75,13 @@ public class CLI {
                 case "createblockchain":
                     //创建区块
                     String createblockchainAddress = cmd.getOptionValue("address");
-                    if (StringUtils.isBlank(createblockchainAddress)) {
+                    String sendAmount = cmd.getOptionValue("amount");
+                    if (StringUtils.isBlank(createblockchainAddress)
+                        || StringUtils.isBlank(sendAmount)
+                        ) {
                         help();
                     }
-                    this.createBlockchain(createblockchainAddress);
+                    this.createBlockchain(createblockchainAddress,sendAmount);
                     break;
                 case "mining":
                     //创建区块
@@ -93,16 +98,27 @@ public class CLI {
                     }
                     this.getBalance(getBalanceAddress);
                     break;
+                case "check":
+                    getBalanceAddress = cmd.getOptionValue("address");
+                    sendAmount = cmd.getOptionValue("amount");
+                    if (StringUtils.isBlank(getBalanceAddress)
+                            || StringUtils.isBlank(sendAmount)
+                    ) {
+                        help();
+                    }
+                    Boolean check = this.check(getBalanceAddress,sendAmount);
+                    log.info("校验钱包是否拥有藏品的结果:{}",check);
+                    break;
                 case "send":
                     String sendFrom = cmd.getOptionValue("from");
                     String sendTo = cmd.getOptionValue("to");
-                    String sendAmount = cmd.getOptionValue("amount");
+                    sendAmount = cmd.getOptionValue("amount");
                     if (StringUtils.isBlank(sendFrom) ||
                             StringUtils.isBlank(sendTo) ||
-                            !NumberUtils.isDigits(sendAmount)) {
+                            StringUtils.isBlank(sendAmount)) {
                         help();
                     }
-                    this.send(sendFrom, sendTo, Integer.valueOf(sendAmount));
+                    this.send(sendFrom, sendTo, sendAmount);
                     break;
                 case "createwallet":
                     this.createWallet();
@@ -127,6 +143,35 @@ public class CLI {
     }
 
     /**
+     * 校验藏品
+     * @param
+     * @param sendAmount
+     */
+    private Boolean check(String address, String sendAmount) {
+        // 检查钱包地址是否合法
+        try {
+            Base58Check.base58ToBytes(address);
+        } catch (Exception e) {
+            log.error("ERROR: invalid wallet address", e);
+            throw new RuntimeException("ERROR: invalid wallet address", e);
+        }
+
+        // 得到公钥Hash值
+        byte[] versionedPayload = Base58Check.base58ToBytes(address);
+        byte[] pubKeyHash = Arrays.copyOfRange(versionedPayload, 1, versionedPayload.length);
+
+        Blockchain blockchain = Blockchain.createBlockchain(address,"");
+        UTXOSet utxoSet = new UTXOSet(blockchain);
+
+        SpendableOutputResult spendableOutputResult = utxoSet.findSpendableOutputs(pubKeyHash,sendAmount);
+        log.info("返回结果：{}",spendableOutputResult);
+        if(spendableOutputResult.getValue()==-1 || spendableOutputResult.getUnspentOuts()==null){
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * 挖矿
      */
     private void mining(String address) {
@@ -137,9 +182,9 @@ public class CLI {
             log.error("ERROR: sender address invalid ! address=" + address, e);
             throw new RuntimeException("ERROR: sender address invalid ! address=" + address, e);
         }
-        Blockchain blockchain = Blockchain.createBlockchain(address);
+        Blockchain blockchain = Blockchain.createBlockchain(address,"");
         //挖矿奖励
-        Transaction rewardTX = Transaction.newCoinbaseTX(address, "");
+        Transaction rewardTX = Transaction.newCoinbaseTX(address, "","");
         //TODO 交易需要发送到其他的节点上去  还需要获取其他的交易
         Block block = blockchain.mineBlock(new Transaction[]{rewardTX});
         new UTXOSet(blockchain).update(block);
@@ -151,8 +196,8 @@ public class CLI {
      *
      * @param address
      */
-    private void createBlockchain(String address) {
-        Blockchain blockchain = Blockchain.createBlockchain(address);
+    private void createBlockchain(String address,String value) {
+        Blockchain blockchain = Blockchain.createBlockchain(address,value);
         UTXOSet utxoSet = new UTXOSet(blockchain);
         utxoSet.reIndex();
         log.info("Done ! ");
@@ -194,7 +239,7 @@ public class CLI {
     }
 
     /**
-     * 查询钱包余额
+     *  查询钱包 交易过的藏品
      *
      * @param address 钱包地址
      */
@@ -211,14 +256,16 @@ public class CLI {
         byte[] versionedPayload = Base58Check.base58ToBytes(address);
         byte[] pubKeyHash = Arrays.copyOfRange(versionedPayload, 1, versionedPayload.length);
 
-        Blockchain blockchain = Blockchain.createBlockchain(address);
+        Blockchain blockchain = Blockchain.createBlockchain(address,"");
         UTXOSet utxoSet = new UTXOSet(blockchain);
 
+        //查询到这个人获取到的藏品。这里有个问题，不一定是最新的
         TXOutput[] txOutputs = utxoSet.findUTXOs(pubKeyHash);
         int balance = 0;
         if (txOutputs != null && txOutputs.length > 0) {
             for (TXOutput txOutput : txOutputs) {
-                balance += txOutput.getValue();
+//                balance += txOutput.getValue();
+                log.info("txOutput of '{}'\n", txOutput);
             }
         }
         log.info("Balance of '{}': {}\n", new Object[]{address, balance});
@@ -232,7 +279,7 @@ public class CLI {
      * @param amount
      * @throws Exception
      */
-    private void send(String from, String to, int amount) throws Exception {
+    private void send(String from, String to, String amount) throws Exception {
         // 检查钱包地址是否合法
         try {
             Base58Check.base58ToBytes(from);
@@ -247,16 +294,16 @@ public class CLI {
             log.error("ERROR: receiver address invalid ! address=" + to, e);
             throw new RuntimeException("ERROR: receiver address invalid ! address=" + to, e);
         }
-        if (amount < 1) {
+        if (StringUtils.isEmpty(amount)) {
             log.error("ERROR: amount invalid ! amount=" + amount);
             throw new RuntimeException("ERROR: amount invalid ! amount=" + amount);
         }
-        Blockchain blockchain = Blockchain.createBlockchain(from);
+        Blockchain blockchain = Blockchain.createBlockchain(from,amount);
         // 新交易
         Transaction transaction = Transaction.newUTXOTransaction(from, to, amount, blockchain);
-        // 奖励
-        Transaction rewardTx = Transaction.newCoinbaseTX(from, "");
-        Block newBlock = blockchain.mineBlock(new Transaction[]{transaction, rewardTx});
+        // 奖励 - 没有奖励
+//        Transaction rewardTx = Transaction.newCoinbaseTX(from, "",amount);
+        Block newBlock = blockchain.mineBlock(new Transaction[]{transaction});
         new UTXOSet(blockchain).update(newBlock);
         log.info("Success!");
     }

@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 查询结果
@@ -21,12 +22,16 @@ import java.util.Map;
 public class SpendableOutputResult {
 
     /**
-     * 交易时的支付金额
+     * 位置 输出的
      */
-    private int accumulated;
+    private int value;
     /**
-     * 未花费的交易
+     * 未花费的藏品
      */
-    private Map<String, int[]> unspentOuts;
+    private TXOutput unspentOuts;
 
+    /**
+     * 交易的id，这个输出的
+     */
+    private String txId;
 }
