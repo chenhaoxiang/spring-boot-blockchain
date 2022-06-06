@@ -37,10 +37,10 @@ public class TXOutput {
     public TXOutput() {
     }
 
-    public TXOutput(String value, byte[] pubKeyHash) {
+    public TXOutput(String value, byte[] pubKeyHash,long timestamp) {
         this.value = value;
         this.pubKeyHash = pubKeyHash;
-        this.timestamp = System.currentTimeMillis();
+        this.timestamp = timestamp;
     }
 
     /**
@@ -54,7 +54,7 @@ public class TXOutput {
         // 反向转化为 byte 数组
         byte[] versionedPayload = Base58Check.base58ToBytes(address);
         byte[] pubKeyHash = Arrays.copyOfRange(versionedPayload, 1, versionedPayload.length);
-        return new TXOutput(value, pubKeyHash);
+        return new TXOutput(value, pubKeyHash,System.currentTimeMillis());
     }
 
     /**

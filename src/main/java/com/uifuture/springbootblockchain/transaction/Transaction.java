@@ -199,7 +199,7 @@ public class Transaction {
         TXOutput[] tmpTXOutputs = new TXOutput[this.getOutputs().length];
         for (int i = 0; i < this.getOutputs().length; i++) {
             TXOutput txOutput = this.getOutputs()[i];
-            tmpTXOutputs[i] = new TXOutput(txOutput.getValue(), txOutput.getPubKeyHash());
+            tmpTXOutputs[i] = new TXOutput(txOutput.getValue(), txOutput.getPubKeyHash(),txOutput.getTimestamp());
         }
 
         return new Transaction(this.getTxId(), tmpTXInputs, tmpTXOutputs, this.getCreateTime());
