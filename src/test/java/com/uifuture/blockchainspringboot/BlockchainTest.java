@@ -15,20 +15,18 @@ import com.uifuture.springbootblockchain.cli.CLI;
 public class BlockchainTest {
 
     public static void main(String[] args) {
-        // 1AycK28gqDpWJ4e6oo2oqG9Smr43K3QcTW 219999765  179999060
-        // 15J63sETC6WuoVKZbtKxbWXsiA9W6THRAv 180000235  540000705
         try {
             //创建钱包
-//            String[] argss = {"createwallet"}; //18:35:21.926 [main] INFO com.uifuture.springbootblockchain.cli.CLI - wallet address : 16vdpva8tMNJXLjxafmbD7ZEwB3xoZ58AZ
+//            String[] argss = {"createwallet"}; //18:35:21.926 [main] INFO com.uifuture.springbootblockchain.cli.CLI - wallet address : 18jmaiDq5bmGM1RUtYc7BnaFwxoGfkwSLT 18CYfSJJAPyhzfskzUtny8hQRcdokDmRaM
             //创建区块链
-            String[] argss = {"createblockchain", "-address", "16vdpva8tMNJXLjxafmbD7ZEwB3xoZ58AZ"};
+//            String[] argss = {"createblockchain", "-address", "18jmaiDq5bmGM1RUtYc7BnaFwxoGfkwSLT"};
             // 打印所有钱包地址
 //            String[] argss = {"printaddresses"};
-            //获取钱包余额
+            //获取钱包余额 13Fg3H2DQaDHSCoYEj3Y11Tq7Q93ooxAmA 200000000
+            //获取钱包余额 164mY79vVpcPhB8mjXmCLvjTmceazLfTTF 0
 //            String[] argss = {"getbalance", "-address", "164mY79vVpcPhB8mjXmCLvjTmceazLfTTF"};
             //交易
-//            String[] argss = {"send", "-from", "1AycK28gqDpWJ4e6oo2oqG9Smr43K3QcTW"
-//                    , "-to", "15J63sETC6WuoVKZbtKxbWXsiA9W6THRAv", "-amount", "180000235"};
+            String[] argss = {"send", "-from", "18jmaiDq5bmGM1RUtYc7BnaFwxoGfkwSLT", "-to", "18CYfSJJAPyhzfskzUtny8hQRcdokDmRaM", "-amount", "1000"};
             //打印链
 //            String[] argss = {"printchain"};
             //进行挖区块
