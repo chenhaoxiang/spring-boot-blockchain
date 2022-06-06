@@ -64,19 +64,19 @@ public class CLI {
     /**
      * 命令行解析入口
      */
-    public void parse() {
+    public void parse(String hash) {
         this.validateArgs(args);
         try {
             CommandLineParser parser = new DefaultParser();
             CommandLine cmd = parser.parse(options, args);
             switch (args[0]) {
                 case "createblockchain":
-                    //创建区块
+                    //创建区块链
                     String createblockchainAddress = cmd.getOptionValue("address");
                     if (StringUtils.isBlank(createblockchainAddress)) {
                         help();
                     }
-                    this.createBlockchain(createblockchainAddress);
+                    this.createBlockchain(createblockchainAddress,hash);
                     break;
                 case "mining":
                     //创建区块
@@ -84,7 +84,7 @@ public class CLI {
                     if (StringUtils.isBlank(createblockAddress)) {
                         help();
                     }
-                    this.mining(createblockAddress);
+                    this.mining(createblockAddress,fileBytes);
                     break;
                 case "getbalance":
                     String getBalanceAddress = cmd.getOptionValue("address");
@@ -129,7 +129,7 @@ public class CLI {
     /**
      * 挖矿
      */
-    private void mining(String address) {
+    private void mining(String address,byte[] fileBytes) {
         // 检查钱包地址是否合法
         try {
             Base58Check.base58ToBytes(address);
@@ -137,7 +137,7 @@ public class CLI {
             log.error("ERROR: sender address invalid ! address=" + address, e);
             throw new RuntimeException("ERROR: sender address invalid ! address=" + address, e);
         }
-        Blockchain blockchain = Blockchain.createBlockchain(address);
+        Blockchain blockchain = Blockchain.createBlockchain(address,fileBytes);
         //挖矿奖励
         Transaction rewardTX = Transaction.newCoinbaseTX(address, "");
         //TODO 交易需要发送到其他的节点上去  还需要获取其他的交易
@@ -151,8 +151,8 @@ public class CLI {
      *
      * @param address
      */
-    private void createBlockchain(String address) {
-        Blockchain blockchain = Blockchain.createBlockchain(address);
+    private void createBlockchain(String address,String hash) {
+        Blockchain blockchain = Blockchain.createBlockchain(address,hash);
         UTXOSet utxoSet = new UTXOSet(blockchain);
         utxoSet.reIndex();
         log.info("Done ! ");
@@ -194,11 +194,11 @@ public class CLI {
     }
 
     /**
-     * 查询钱包余额
+     * 查询 藏品
      *
      * @param address 钱包地址
      */
-    private void getBalance(String address) {
+    private void getBalance(String address,byte[] fileBytes) {
         // 检查钱包地址是否合法
         try {
             Base58Check.base58ToBytes(address);
@@ -211,7 +211,7 @@ public class CLI {
         byte[] versionedPayload = Base58Check.base58ToBytes(address);
         byte[] pubKeyHash = Arrays.copyOfRange(versionedPayload, 1, versionedPayload.length);
 
-        Blockchain blockchain = Blockchain.createBlockchain(address);
+        Blockchain blockchain = Blockchain.createBlockchain(address,fileBytes);
         UTXOSet utxoSet = new UTXOSet(blockchain);
 
         TXOutput[] txOutputs = utxoSet.findUTXOs(pubKeyHash);
@@ -225,14 +225,14 @@ public class CLI {
     }
 
     /**
-     * 转账
+     * 转赠藏品
      *
      * @param from
      * @param to
-     * @param amount
+     * @param fileBytes
      * @throws Exception
      */
-    private void send(String from, String to, int amount) throws Exception {
+    private void send(String from, String to, byte[] fileBytes) throws Exception {
         // 检查钱包地址是否合法
         try {
             Base58Check.base58ToBytes(from);
@@ -247,13 +247,13 @@ public class CLI {
             log.error("ERROR: receiver address invalid ! address=" + to, e);
             throw new RuntimeException("ERROR: receiver address invalid ! address=" + to, e);
         }
-        if (amount < 1) {
-            log.error("ERROR: amount invalid ! amount=" + amount);
-            throw new RuntimeException("ERROR: amount invalid ! amount=" + amount);
+        if (fileBytes ==null || fileBytes.length==0) {
+            log.error("ERROR: The collection wrong");
+            throw new RuntimeException("ERROR: The collection wrong" );
         }
-        Blockchain blockchain = Blockchain.createBlockchain(from);
-        // 新交易
-        Transaction transaction = Transaction.newUTXOTransaction(from, to, amount, blockchain);
+        Blockchain blockchain = Blockchain.createBlockchain(from,fileBytes);
+        // 新转赠 - 交易
+        Transaction transaction = Transaction.newUTXOTransaction(from, to, fileBytes, blockchain);
         // 奖励
         Transaction rewardTx = Transaction.newCoinbaseTX(from, "");
         Block newBlock = blockchain.mineBlock(new Transaction[]{transaction, rewardTx});

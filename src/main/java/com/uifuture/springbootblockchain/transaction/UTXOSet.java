@@ -33,38 +33,39 @@ public class UTXOSet {
     private Blockchain blockchain;
 
     /**
-     * 寻找能够花费的交易
+     * 寻找能够这个人拥有的这个藏品
      *
      * @param pubKeyHash 钱包公钥Hash
-     * @param amount     花费金额
+     * @param hash     藏品的hash
      */
-    public SpendableOutputResult findSpendableOutputs(byte[] pubKeyHash, int amount) {
-        Map<String, int[]> unspentOuts = Maps.newHashMap();
-        int accumulated = 0;
+    public SpendableOutputResult findSpendableOutputs(byte[] pubKeyHash, String hash) {
+        SpendableOutputResult spendableOutputResult = new SpendableOutputResult();
+        Map<String, String[]> unspentOuts = Maps.newHashMap();
+
         Map<String, byte[]> chainstateBucket = RocksDBUtils.getInstance().getChainstateBucket();
         for (Map.Entry<String, byte[]> entry : chainstateBucket.entrySet()) {
             String txId = entry.getKey();
             TXOutput[] txOutputs = (TXOutput[]) SerializeUtils.deserialize(entry.getValue());
-
             for (int outId = 0; outId < txOutputs.length; outId++) {
-                TXOutput txOutput = txOutputs[outId];
-                if (txOutput.isLockedWithKey(pubKeyHash) && accumulated < amount) {
-                    accumulated += txOutput.getValue();
+                if (hash.equals(txOutput.getHash())) {
+                    spendableOutputResult.setHave(txOutput.isLockedWithKey(pubKeyHash));
+                    break;
+                }
+                accumulated += txOutput.getValue();
 
-                    int[] outIds = unspentOuts.get(txId);
-                    if (outIds == null) {
-                        outIds = new int[]{outId};
-                    } else {
-                        outIds = ArrayUtils.add(outIds, outId);
-                    }
-                    unspentOuts.put(txId, outIds);
-                    if (accumulated >= amount) {
-                        break;
-                    }
+                String[] outIds = unspentOuts.get(txId);
+                if (outIds == null) {
+                    outIds = new String[]{outId};
+                } else {
+                    outIds = ArrayUtils.add(outIds, outId);
+                }
+                unspentOuts.put(txId, outIds);
+                if (accumulated >= amount) {
+                    break;
                 }
             }
         }
-        return new SpendableOutputResult(accumulated, unspentOuts);
+        return spendableOutputResult;
     }
 
 

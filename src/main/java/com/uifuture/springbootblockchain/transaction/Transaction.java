@@ -4,21 +4,17 @@
  */
 package com.uifuture.springbootblockchain.transaction;
 
-import com.uifuture.springbootblockchain.bd.RocksDBUtils;
+import com.uifuture.springbootblockchain.block.Block;
 import com.uifuture.springbootblockchain.block.Blockchain;
 import com.uifuture.springbootblockchain.util.BtcAddressUtils;
 import com.uifuture.springbootblockchain.util.SerializeUtils;
 import com.uifuture.springbootblockchain.wallet.Wallet;
 import com.uifuture.springbootblockchain.wallet.WalletUtils;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -33,7 +29,7 @@ import java.security.PublicKey;
 import java.security.Security;
 import java.security.Signature;
 import java.util.Arrays;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 /**
  * 交易
@@ -42,91 +38,59 @@ import java.util.Map;
  * @version Transaction.java, v 0.1 2018-10-15 下午 6:22
  */
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 @Slf4j
 public class Transaction {
-    private static final Integer OUT_PUT_VALUE = 210000;
     /**
-     * 100 UB 创世奖励再加100UB
+     * 本交易的Hash
      */
-    private static final Integer CREATION_VALUE = 1000000 * 100;
+    private String hash;
     /**
-     * 交易的Hash
+     * 输出人的地址
      */
-    private byte[] txId;
+    private String from;
     /**
-     * 交易输入
+     * 公钥hash
      */
-    private TXInput[] inputs;
+    private String fromPubHash;
     /**
-     * 交易输出
+     * 接收人的地址 - 公钥
      */
-    private TXOutput[] outputs;
+    private String to;
     /**
-     * 创建日期
+     * 藏品的hash
+     */
+    private String data;
+    /**
+     * 交易的时间
      */
     private long createTime;
-
     /**
-     * 创建CoinBase交易
-     *
-     * @param to   收账的钱包地址
-     * @param data 解锁脚本数据
-     * @return
+     * 签名 - 由输出的人进行签名，需要私钥 才能进行验证
      */
-    public static Transaction newCoinbaseTX(String to, String data) {
-        if (StringUtils.isBlank(data)) {
-            data = String.format("Reward to '%s'", to);
-        }
-        // 创建交易输入
-        TXInput txInput = new TXInput(new byte[]{}, -1, null, data.getBytes(StandardCharsets.UTF_8));
-        //获取当前区块大小
-        Integer size = RocksDBUtils.getInstance().getChainstateBucket().size();
-        Integer multiple = size / OUT_PUT_VALUE + 1;
-        Integer value = CREATION_VALUE / multiple;
-        if (size == 0) {
-            //创世区块
-            value = value * 2;
-        }
+    private String signature;
 
-        // 创建交易输出
-        TXOutput txOutput = TXOutput.newTXOutput(value, to);
-        // 创建交易
-        Transaction tx = new Transaction(null, new TXInput[]{txInput},
-                new TXOutput[]{txOutput}, System.currentTimeMillis());
-        // 设置交易ID
-        tx.setTxId(tx.hash());
-        return tx;
+    public Transaction() {
+    }
+
+    public Transaction(String hash, String from, String to,String data, long createTime) {
+        this.hash = hash;
+        this.from = from;
+        this.to = to;
+        this.data = data;
+        this.createTime = createTime;
     }
 
     /**
-     * 创建 交易  挖矿奖励
+     * TODO 创建 交易 购买-使用金钱购买
      *
      * @param to 收账的钱包地址
      * @return
      */
-    public static Transaction newRewardTX(String to, Blockchain blockchain) throws DecoderException {
-        //获取当前区块大小
-        Integer size = RocksDBUtils.getInstance().getChainstateBucket().size();
-        Integer multiple = size / OUT_PUT_VALUE + 1;
-        Integer value = CREATION_VALUE / multiple;
-        if (size == 0) {
-            //创世区块
-            value = value * 2;
-        }
-
-        String data = String.format("Reward to '%s'", to);
-        // 创建交易输入
-        TXInput txInput = new TXInput(new byte[]{}, -1, null, data.getBytes(StandardCharsets.UTF_8));
-
-        // 创建交易输出
-        TXOutput txOutput = TXOutput.newTXOutput(value, to);
+    public static Transaction newRewardTX(String from,String to,String data) throws DecoderException {
         // 创建交易
-        Transaction tx = new Transaction(null, new TXInput[]{txInput},
-                new TXOutput[]{txOutput}, System.currentTimeMillis());
+        Transaction tx = new Transaction(null, from,to,data, System.currentTimeMillis());
         // 设置交易ID
-        tx.setTxId(tx.hash());
+        tx.setHash(tx.hash());
         return tx;
     }
 
@@ -135,49 +99,24 @@ public class Transaction {
      *
      * @param from       支付钱包地址
      * @param to         收款钱包地址
-     * @param amount     交易金额
+     * @param data     交易藏品
      * @param blockchain 区块链
      * @return
      */
-    public static Transaction newUTXOTransaction(String from, String to, int amount, Blockchain blockchain) throws Exception {
+    public static Transaction newUTXOTransaction(String from, String to, String data, Blockchain blockchain) throws Exception {
         // 获取钱包
         Wallet senderWallet = WalletUtils.getInstance().getWallet(from);
         byte[] pubKey = senderWallet.getPublicKey();
         byte[] pubKeyHash = BtcAddressUtils.ripeMD160Hash(pubKey);
 
-        SpendableOutputResult result = new UTXOSet(blockchain).findSpendableOutputs(pubKeyHash, amount);
-        int accumulated = result.getAccumulated();
-        Map<String, int[]> unspentOuts = result.getUnspentOuts();
+        //TODO 遍历区块链，校验这个from是否是hash的最后拥有者
 
-        if (accumulated < amount) {
-            log.error("ERROR: Not enough funds ! accumulated=" + accumulated + ", amount=" + amount);
-            throw new RuntimeException("ERROR: Not enough funds ! ");
-        }
-        Iterator<Map.Entry<String, int[]>> iterator = unspentOuts.entrySet().iterator();
 
-        TXInput[] txInputs = {};
-        while (iterator.hasNext()) {
-            Map.Entry<String, int[]> entry = iterator.next();
-            String txIdStr = entry.getKey();
-            int[] outIds = entry.getValue();
-            byte[] txId = Hex.decodeHex(txIdStr);
-            for (int outIndex : outIds) {
-                txInputs = ArrayUtils.add(txInputs, new TXInput(txId, outIndex, null, pubKey));
-            }
-        }
-
-        TXOutput[] txOutput = {};
-        txOutput = ArrayUtils.add(txOutput, TXOutput.newTXOutput(amount, to));
-        if (accumulated > amount) {
-            txOutput = ArrayUtils.add(txOutput, TXOutput.newTXOutput((accumulated - amount), from));
-        }
-
-        Transaction newTx = new Transaction(null, txInputs, txOutput, System.currentTimeMillis());
-        newTx.setTxId(newTx.hash());
+        Transaction newTx = new Transaction(null, from, to,data, System.currentTimeMillis());
+        newTx.setHash(newTx.hash());
 
         // 进行交易签名
         blockchain.signTransaction(newTx, senderWallet.getPrivateKey());
-
         return newTx;
     }
 
@@ -186,23 +125,20 @@ public class Transaction {
      *
      * @return
      */
-    public byte[] hash() {
+    public String hash() {
         // 使用序列化的方式对Transaction对象进行深度复制
         byte[] serializeBytes = SerializeUtils.serialize(this);
         Transaction copyTx = (Transaction) SerializeUtils.deserialize(serializeBytes);
-        copyTx.setTxId(new byte[]{});
-        return DigestUtils.sha256(SerializeUtils.serialize(copyTx));
+        copyTx.setHash("");
+        return new String(DigestUtils.sha256(SerializeUtils.serialize(copyTx)), StandardCharsets.UTF_8);
     }
 
     /**
-     * 是否为 Coinbase 交易
-     *
+     * TODO 是否为 购买的 交易
      * @return
      */
     public boolean isCoinbase() {
-        return this.getInputs().length == 1
-                && this.getInputs()[0].getTxId().length == 0
-                && this.getInputs()[0].getTxOutputIndex() == -1;
+        return true;
     }
 
     /**
@@ -211,18 +147,6 @@ public class Transaction {
      * @return
      */
     public Transaction trimmedCopy() {
-        TXInput[] tmpTXInputs = new TXInput[this.getInputs().length];
-        for (int i = 0; i < this.getInputs().length; i++) {
-            TXInput txInput = this.getInputs()[i];
-            tmpTXInputs[i] = new TXInput(txInput.getTxId(), txInput.getTxOutputIndex(), null, null);
-        }
-
-        TXOutput[] tmpTXOutputs = new TXOutput[this.getOutputs().length];
-        for (int i = 0; i < this.getOutputs().length; i++) {
-            TXOutput txOutput = this.getOutputs()[i];
-            tmpTXOutputs[i] = new TXOutput(txOutput.getValue(), txOutput.getPubKeyHash());
-        }
-
         return new Transaction(this.getTxId(), tmpTXInputs, tmpTXOutputs, this.getCreateTime());
     }
 
@@ -276,21 +200,19 @@ public class Transaction {
 
 
     /**
-     * 验证交易信息
-     * @param prevTxMap 前面多笔交易集合
+     * 验证当前的交易信息
+     * @param 历史的区块
      * @return
      */
-    public boolean verify(Map<String, Transaction> prevTxMap) throws Exception {
+    public boolean verify(List<Block> blockList) throws Exception {
         // coinbase 交易信息不需要签名，也就无需验证
         if (this.isCoinbase()) {
             return true;
         }
 
         // 再次验证一下交易信息中的交易输入是否正确，也就是能否查找对应的交易数据
-        for (TXInput txInput : this.getInputs()) {
-            if (prevTxMap.get(Hex.encodeHexString(txInput.getTxId())) == null) {
-                throw new RuntimeException("ERROR: Previous transaction is not correct");
-            }
+        if (prevTxMap.get(Hex.encodeHexString(this.getTxId())) == null) {
+            throw new RuntimeException("ERROR: Previous transaction is not correct");
         }
 
         // 创建用于签名验证的交易信息的副本
@@ -304,7 +226,7 @@ public class Transaction {
         for (int i = 0; i < this.getInputs().length; i++) {
             TXInput txInput = this.getInputs()[i];
             // 获取交易输入TxID对应的交易数据
-            Transaction prevTx = prevTxMap.get(Hex.encodeHexString(txInput.getTxId()));
+            Transaction prevTx = prevTxMap.get(Hex.encodeHexString(this.getTxId()));
             // 获取交易输入所对应的上一笔交易中的交易输出
             TXOutput prevTxOutput = prevTx.getOutputs()[txInput.getTxOutputIndex()];
 

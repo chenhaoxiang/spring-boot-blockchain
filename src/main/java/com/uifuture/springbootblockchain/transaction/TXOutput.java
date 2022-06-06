@@ -4,6 +4,7 @@
  */
 package com.uifuture.springbootblockchain.transaction;
 
+import com.uifuture.springbootblockchain.collection.Collection;
 import com.uifuture.springbootblockchain.util.Base58Check;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,31 +19,38 @@ import java.util.Arrays;
  * @version TXOutput.java, v 0.1 2018-10-15 下午 6:23
  */
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class TXOutput {
 
     /**
-     * 数值
+     * 交易的藏品
      */
-    private int value;
+    private String hash;
+
     /**
      * 公钥Hash
      */
     private byte[] pubKeyHash;
 
+    public TXOutput() {
+    }
+
+    public TXOutput(String hash, byte[] pubKeyHash) {
+        this.hash = hash;
+        this.pubKeyHash = pubKeyHash;
+    }
+
     /**
      * 创建交易输出
      *
-     * @param value
-     * @param address
+     * @param hash
+     * @param address 接收人
      * @return
      */
-    public static TXOutput newTXOutput(int value, String address) {
+    public static TXOutput newTXOutput(String hash, String address) {
         // 反向转化为 byte 数组
         byte[] versionedPayload = Base58Check.base58ToBytes(address);
         byte[] pubKeyHash = Arrays.copyOfRange(versionedPayload, 1, versionedPayload.length);
-        return new TXOutput(value, pubKeyHash);
+        return new TXOutput(hash, pubKeyHash);
     }
 
     /**

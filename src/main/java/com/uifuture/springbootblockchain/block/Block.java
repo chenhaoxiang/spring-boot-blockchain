@@ -9,11 +9,14 @@ import com.uifuture.springbootblockchain.pow.ProofOfWork;
 import com.uifuture.springbootblockchain.transaction.MerkleTree;
 import com.uifuture.springbootblockchain.transaction.Transaction;
 import com.uifuture.springbootblockchain.util.ByteUtils;
+import com.uifuture.springbootblockchain.util.SerializeUtils;
 import lombok.Data;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.json.JSONObject;
 
-import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 区块
@@ -35,7 +38,7 @@ public class Block {
      */
     private String prevBlockHash;
     /**
-     * 交易信息
+     * 藏品信息
      */
     private Transaction[] transactions;
     /**
@@ -43,23 +46,18 @@ public class Block {
      */
     private long timeStamp;
     /**
-     * 工作量证明计数器 挖到时的运算值
-     */
-    private BigInteger nonce;
-    /**
      * 区块高度
      */
     private int height;
-
     /**
-     * 默克尔树rootHash
+     * 创世区块的hash
      */
-    private String merkleRoot;
-
+    private String rootHash;
     /**
-     * 难度目标值
+     * 本区块的签名，需要结合之前的区块
+     * 历史的区块数据 每次md5 + 本数据 + 输入人的私钥 进行MD5后再 sha256
      */
-    private BigInteger target;
+    private String signature;
     /**
      * <p> 创建创世区块 </p>
      *
@@ -83,30 +81,28 @@ public class Block {
         block.setTimeStamp(System.currentTimeMillis());
         block.setHeight(height);
         block.setTransactions(transactions);
-        block.setMerkleRoot(ByteUtils.bytesToHexString(block.hashTransaction()));
-        log.info("block.hashTransaction={}", block.hashTransaction());
-        log.info("block={}", block);
-        log.info("block.getMerkleRoot={}", ByteUtils.hexStringToByte(block.getMerkleRoot()));
+        block.setSignature(block.hashSignature());
+        log.info("block={}", JSONObject.valueToString(block));
 
         ProofOfWork pow = ProofOfWork.newProofOfWork(block);
         //计算
         PowResult powResult = pow.run();
         block.setHash(powResult.getHash());
-        block.setNonce(powResult.getNonce());
         log.info("block={}", block);
         return block;
     }
 
     /**
-     * 对区块中的交易信息进行Hash计算
-     * 获取根节点Hash
+     * TODO 对区块中的藏品信息进行Hash计算,签名
+     *
      * @return
      */
-    public byte[] hashTransaction() {
-        byte[][] txIdArrays = new byte[this.getTransactions().length][];
-        for (int i = 0; i < this.getTransactions().length; i++) {
-            txIdArrays[i] = this.getTransactions()[i].hash();
+    public String hashSignature() {
+        Transaction[] transaction = this.getTransactions();
+        StringBuilder hashs = new StringBuilder();
+        for (Transaction transaction1 : transaction) {
+            hashs.append(transaction1.getHash());
         }
-        return new MerkleTree(txIdArrays).getRoot().getHash();
+        return new String(DigestUtils.sha256(SerializeUtils.serialize(hashs.toString())), StandardCharsets.UTF_8);
     }
 }

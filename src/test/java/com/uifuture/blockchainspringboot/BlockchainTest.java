@@ -36,7 +36,7 @@ public class BlockchainTest {
             //帮助
 //            String[] argss = {"h"};
             CLI cli = new CLI(argss);
-            cli.parse();
+            cli.parse("");
         } catch (Exception e) {
             e.printStackTrace();
         }
